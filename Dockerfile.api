@@ -1,0 +1,19 @@
+# Use Python base image for Flask API
+FROM python:3.12-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Copy all files from the local automessage-api directory to the container
+COPY automessage-api/ /app/
+
+# Install Flask dependencies
+COPY automessage-api/requirements.txt /app/requirements.txt
+RUN pip install -r /app/requirements.txt
+
+
+# Expose Flask default port
+EXPOSE 5000
+
+
+CMD ["flask", "run", "--host=0.0.0.0", "-p", "5000" , "--debug", "--reload"]

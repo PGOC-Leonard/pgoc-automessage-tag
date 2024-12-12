@@ -1,0 +1,26 @@
+# Build step #1: build the React front end
+FROM node:20-alpine as build-step
+WORKDIR /app
+
+# Set environment variable for node_modules/.bin
+ENV PATH /app/automessage-webapp/node_modules/.bin:$PATH
+
+# Copy package.json and yarn.lock for installing dependencies
+COPY automessage-webapp/package.json automessage-webapp/package-lock.json ./
+
+# Copy the source files from the automessage-webapp folder into the container
+COPY automessage-webapp/src ./src
+COPY automessage-webapp/public ./public
+
+# Install dependencies and build the React app
+RUN npm install
+RUN npm start
+
+# Build step #2: build an nginx container
+FROM nginx:stable-alpine
+
+# Copy the build files from the previous build step to the nginx container
+COPY --from=build-step /app/build /usr/share/nginx/html
+
+# Copy custom nginx configuration (adjusted path)
+COPY automessage-webapp/deployment/nginx.default.conf /etc/nginx/conf.d/default.conf

@@ -1,0 +1,55 @@
+/* Hide the native radio buttons */
+input[type="radio"] {
+  display: none;
+}
+
+/* Custom radio button container */
+.radio-label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-family: "Montserrat";
+  font-size: 13px !important;
+  color: var(--label-color);
+  text-align: left;
+  padding-right: 1px !important;
+}
+
+/* Custom radio button style */
+.radio-custom {
+  width: 15px; /* Size of the radio button */
+  height: 15px;
+  border: 1px solid #dc2626; /* Border color (red) */
+  border-radius: 50%;
+  position: relative;
+  margin-right: 0px;
+  background-color: #fff;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+/* When the radio button is checked */
+input[type="radio"]:checked + .radio-custom {
+  background-color: #dc2626; /* Red fill */
+  border-color: #dc2626;
+}
+
+/* Radio button inner circle for checked state */
+input[type="radio"]:checked + .radio-custom::after {
+  content: "";
+  width: 0px;
+  height: 5px;
+  background-color: #fff;
+  border-radius: 50%;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Label text style */
+.radio-text {
+  padding-left: 8px;
+  font-size: 12px;
+  color: #333; /* Text color */
+  font-family: "Montserrat", sans-serif;
+}

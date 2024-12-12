@@ -1,0 +1,81 @@
+/* Sidebar styles */
+.sidebar {
+  position: fixed;
+  top: 55px; /* Below the header */
+  left: 0;
+  height: 100%;
+  width: 250px; /* Default width for open sidebar */
+  background: linear-gradient(180deg, #E1E1E1 0%, #ffffff 80%, #E1E1E1  90%);
+  color: rgb(2, 2, 2);
+  padding: 10px;
+  transition: all 0.3s ease;
+  z-index: 1000;
+}
+
+/* Sidebar closed styles */
+.sidebar.closed {
+  width: 80px; /* Narrow width when sidebar is closed */
+}
+
+/* Remove default list styles */
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Sidebar item styles */
+.sidebar-item {
+  padding: 8px 0;
+}
+
+/* Link styles */
+.sidebarLink {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  color: #A70000;
+  font-size: 16px;
+  padding: 8px 10px;
+  transition: background-color 0.3s ease; /* Only background-color transition */
+}
+
+/* When sidebar is closed, center icons horizontally */
+.sidebar.closed .sidebarLink {
+  justify-content: center;
+}
+
+/* Sidebar text styles */
+.sidebar-text {
+  font-size: 16px;
+  flex-grow: 1;
+  color: black;
+  margin-left: 20px;
+  transition: None; /* Smooth transition for text visibility */
+}
+
+/* When sidebar is closed, hide text */
+.sidebar.closed .sidebar-text {
+  opacity: 0; /* Hide text */
+  pointer-events: none; /* Prevent interaction with hidden text */
+}
+
+/* Sidebar icon styles */
+.sidebar-icon {
+  font-size: 20px; /* Icon size */
+  margin-right: 10px; /* Space between icon and text */
+  transition: none; /* Remove transition to keep icons fixed */
+}
+
+/* When sidebar is closed, no margin for icons */
+.sidebar.closed .sidebar-icon {
+  margin-right: 0; /* Remove margin when sidebar is closed */
+}
+
+/* Hover effect */
+.sidebarLink:hover {
+  background-color: #ee1616;
+  border-radius: 20px;
+  padding: 5px;
+  opacity: 0.8;
+}

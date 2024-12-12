@@ -1,0 +1,23 @@
+# Use a Node.js base image
+FROM node:20-alpine
+
+# Set the working directory in the container
+WORKDIR /app/automessage-webapp
+
+# Copy package.json and package-lock.json for installing dependencies
+COPY automessage-webapp/package.json automessage-webapp/package-lock.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy the source files into the container
+COPY automessage-webapp/ ./
+
+# Expose the port that the React development server runs on
+EXPOSE 3000
+
+# Install `nodemon` to monitor file changes and restart the server automatically
+RUN npm install -g nodemon
+
+# Start the React development server using `nodemon` to watch for file changes
+CMD ["nodemon", "--watch", ".", "--exec", "npm start"]

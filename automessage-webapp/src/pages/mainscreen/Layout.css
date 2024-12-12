@@ -1,0 +1,39 @@
+/* Layout container */
+.layout {
+  display: flex;
+  height: 100vh; /* Full viewport height */
+  width: 100%;
+  overflow: hidden; /* Prevent overflow in the main container */
+}
+
+.mainContent {
+  display: flex;
+  flex-direction: column;  /* Ensure content stacks vertically if needed */
+  flex-grow: 1;  /* Allow this element to take available space */
+  padding-top: 60px;  /* Header height offset */
+  background-color: white;  /* Ensure the background is white */
+  transition: margin-left 0.3s ease;
+  margin-left: 0;  /* Initial margin-left */
+  box-sizing: border-box;  /* Include padding in width calculation */
+  overflow-x: hidden; /* Prevent horizontal overflow */
+}
+
+.sidebarOpen {
+  margin-left: 250px;  /* Sidebar width when open */
+}
+
+.sidebarClosed {
+  margin-left: 80px;  /* Reset margin when the sidebar is closed */
+}
+
+.contentArea {
+  flex-grow: 1;  /* Take up the remaining space */
+  padding: 20px;
+  width: 100%;  /* Ensure it takes the full width of the remaining space */
+  box-sizing: border-box;  /* Include padding in width calculation */
+  overflow-y: auto; /* Enable vertical scrolling if needed */
+  max-width: 100%;  /* Ensure the content doesn't exceed available width */
+  overflow-x: auto; /* Prevent horizontal overflow */
+}
+
+/* For mobile view adjustments */

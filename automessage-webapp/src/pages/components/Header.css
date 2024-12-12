@@ -1,0 +1,69 @@
+/* Header style */
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 60px;
+  background: linear-gradient(80deg, #E1E1E1 0%, #ffffff 80%, #E1E1E1 95%);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  z-index: 1000;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  transition: background 0.3s ease; /* Smooth transition for background */
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+}
+
+.header-logo {
+  width: 40px; /* Adjust size as needed */
+  height: 40px; /* Adjust size as needed */
+  margin-left: 0px;
+  margin-right: 20px;
+}
+
+.header .menuButton {
+  margin-right: 20px;
+  color:  #444444 !important; /* Ensure color is applied */
+  background: none; /* Remove default background */
+  border: none; /* Remove default border */
+  cursor: pointer;
+  font-size: 24px; /* Optional: Adjust size */
+}
+
+.header .menuButton:hover {
+  padding: 5px;
+  border-radius: 20px;
+  background-color: #ee1616;
+  opacity: 0.8; /* Add hover effect */
+}
+
+/* Style for the title (center) */
+.title {
+  flex-grow: 1;
+  font-size: 20px;
+  color: rgb(12, 12, 12); /* Title in white for consistency */
+  margin: 0;
+}
+
+/* Style for the logout button (right) */
+/* Make sure to define this in your CSS file */
+.header .logout-btn {
+  font-weight: 800;
+  background-color: #A70000;
+  color: white;
+  padding: 0.25rem 0.75rem; /* py-1 px-3 */
+  border-radius: 0.375rem;  /* rounded-md */
+  font-size: 0.875rem; /* text-sm */
+  transition: background-color 0.3s ease;
+  border-color: black;
+  border: 2px;
+}
+
+.logout-btn:hover {
+  background-color: #8A0000;  /* hover:bg-[#8A0000] */
+}
