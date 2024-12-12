@@ -2,7 +2,7 @@
 *.env
 
 # Ignore virtual environment folder in automessage-api
-automessage-api/.venv_message/
+automessage-api/.venv_messageapi/
 
 # Ignore Python cache and build files
 *.pyc
