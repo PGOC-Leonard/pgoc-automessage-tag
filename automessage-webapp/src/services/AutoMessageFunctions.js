@@ -1,6 +1,8 @@
 import notify from "../pages/components/Toast.js";
 
-const baseURL = "http://192.168.0.19:5000"; // Base URL for the backend
+const apiUrl = process.env.REACT_APP_AUTOMESSAGE_TAG_API_LINK;
+
+const baseURL = apiUrl; // Base URL for the backend
 
 /**
  * Function to update data in the Redis backend using fetch

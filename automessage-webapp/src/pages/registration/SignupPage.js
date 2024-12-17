@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import notify from "../components/Toast"; // Import toast notification component
 
 const SignupPage = ({ onSwitchToLogin }) => {
+  const apiUrl = process.env.REACT_APP_AUTOMESSAGE_TAG_API_LINK;
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -48,7 +49,7 @@ const SignupPage = ({ onSwitchToLogin }) => {
     const signUpData = { username, email, password };
 
     try {
-      const response = await fetch("http://192.168.0.19:5000/register", {
+      const response = await fetch(`${apiUrl}/register`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

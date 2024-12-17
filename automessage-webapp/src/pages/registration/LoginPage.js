@@ -8,6 +8,7 @@ import notify from '../components/Toast'
 
 
 const LoginPage = () => {
+  const apiUrl = process.env.REACT_APP_AUTOMESSAGE_TAG_API_LINK;
   const [usernameOrEmail, setUsernameOrEmail] = useState(''); // Changed to accept either username or email
   const [password, setPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState(''); 
@@ -43,7 +44,7 @@ const LoginPage = () => {
 
     try {
       // Make the POST request to your API (replace with your actual backend URL)
-      const response = await fetch('http://192.168.0.19:5000/login', {
+      const response = await fetch(`${apiUrl}/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

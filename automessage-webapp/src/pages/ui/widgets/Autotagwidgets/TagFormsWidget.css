@@ -1,0 +1,135 @@
+:root {
+  --primary-color: #a40404;
+  --text-color: #333;
+  --label-color: black;
+  --border-color: #ccc;
+  --input-background: white;
+  --border-radius: 2px;
+  --padding: 2px;
+  --gap: 0.5px;
+}
+
+
+
+.widget-container {
+  display: grid;
+  padding: 2;
+  grid-template-columns: 1fr 2fr;
+  gap: var(--gap);
+  padding: 4px;
+  max-width: 500px;
+  margin: auto;
+  font-family: 'Arial', sans-serif;
+  background-color: #fff;
+  border-radius: var(--border-radius);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  width:100%
+}
+
+
+.label {
+  font-family: "Montserrat";
+  font-size: 13px !important;
+  color: var(--label-color);
+  align-self: center;
+  text-align: left;
+  padding-right: 1px !important;
+}
+
+.label-edit {
+  font-family: "Montserrat";
+  font-size: 13px !important;
+  color: var(--label-color);
+  align-self: start;
+  text-align: left;
+  padding-right: 1px !important;
+  padding-bottom: 2px !important;
+}
+
+.input-text,
+.react-datepicker-wrapper input,
+.input-text{
+  font-size: 12px;
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background-color: var(--input-background);
+  padding: 5px;
+  height: 28px;
+}
+.input-number{
+  font-size: 12px;
+  color: var(--text-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background-color: var(--input-background);
+  padding: 5px;
+  margin-bottom: 3px;
+  height: 28px;
+  width: 50px;
+}
+
+.react-datepicker-wrapper{
+font-size: 12px;
+width: 200px;
+height: 28px;
+}
+
+/* Styling for enabled datepicker */
+.react-datepicker__input-container input {
+  background-color: white;
+  font-size: 12px;
+  padding: 10px;
+  height: 28px;
+  
+}
+
+/* Styling for disabled datepicker */
+.react-datepicker__input-container input:disabled {
+  padding: 10px;
+  background-color: #f0f0f0; /* Light gray background when disabled */
+  border-color: #ccc; /* Lighter border color when disabled */
+  color: #a9a9a9; /* Lighter text color when disabled */
+  cursor: not-allowed; /* Change cursor when disabled */
+}
+
+
+
+
+.input-text:focus,
+.input-number:focus,
+.react-datepicker-wrapper input:focus {
+  border-color: #d32f2f;
+  outline: none;
+}
+
+.react-datepicker__header {
+  background-color: #a40404 !important; /* Header background color */
+  color: white !important; /* Header text color */
+}
+
+.react-datepicker__current-month,
+.react-datepicker__day-name
+{
+  color: white !important;
+}
+
+/* Change the background color and text color for today's date */
+.react-datepicker__day--today {
+  background-color: #a40404 !important; /* Green background for today */
+  color: white !important;             /* White text for better contrast */
+  border-radius: 50%;                  /* Optional: Make it a circle */
+}
+
+/* Optional: Change hover effect for today's date */
+.react-datepicker__day--today:hover {
+  background-color: red !important;
+  border-radius: 50%;   /* Darker green on hover */
+}
+
+/* Custom style for the selected day */
+.react-datepicker__day--selected {
+  background-color: #E1E1E1 !important; /* Blue background for the selected day */
+  color: black !important;             /* White text for better readability */
+  border-radius: 50%;                  /* Optional: Circular design */
+}

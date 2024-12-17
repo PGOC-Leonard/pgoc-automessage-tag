@@ -13,6 +13,7 @@ import { saveData, fetchData } from "../../services/AutoMessageFunctions.js";
 import { format, isEqual } from "date-fns"; // To format and compare dates
 
 const AutoMessagePage = () => {
+  const apiUrl = process.env.REACT_APP_AUTOMESSAGE_TAG_API_LINK;
   const [formData, setFormData] = useState({});
   const [timeData, setTimeData] = useState({});
   const [messageData, setMessageData] = useState({});
@@ -155,7 +156,7 @@ const AutoMessagePage = () => {
     const redis_key = localStorage.getItem("redis_key");
     // Create a new EventSource to listen for SSE data from the Flask server
     const eventSource = new EventSource(
-      `http://192.168.0.19:5000/events?key=${redis_key}`
+      `${apiUrl}/events?key=${redis_key}`
     );
 
     // Handle incoming messages from the server
