@@ -37,8 +37,8 @@ def create_app():
 
     # Celery Configuration using environment variables and in the required dictionary format
     app.config["CELERY"] = {
-        "broker_url": os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/1'),
-        "result_backend": os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/1'),
+        "broker_url": os.getenv('CELERY_BROKER_URL', 'redis://localhost:6380/1'),
+        "result_backend": os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6380/1'),
         'timezone': 'Asia/Manila', 
     }
  

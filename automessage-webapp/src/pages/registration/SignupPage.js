@@ -48,7 +48,7 @@ const SignupPage = ({ onSwitchToLogin }) => {
     const signUpData = { username, email, password };
 
     try {
-      const response = await fetch("http://localhost:5000/register", {
+      const response = await fetch("http://192.168.0.19:5000/register", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

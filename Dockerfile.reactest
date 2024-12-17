@@ -16,8 +16,4 @@ COPY automessage-webapp/ ./
 # Expose the port that the React development server runs on
 EXPOSE 3000
 
-# Install `nodemon` to monitor file changes and restart the server automatically
-RUN npm install -g nodemon
-
-# Start the React development server using `nodemon` to watch for file changes
-CMD ["nodemon", "--watch", ".", "--exec", "npm start"]
+CMD ["npm", "start"]

@@ -1,6 +1,6 @@
 import notify from "../pages/components/Toast.js";
 
-const baseURL = "http://localhost:5000"; // Base URL for the backend
+const baseURL = "http://192.168.0.19:5000"; // Base URL for the backend
 
 /**
  * Function to update data in the Redis backend using fetch

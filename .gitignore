@@ -1,8 +1,10 @@
 # Ignore .env files
 *.env
 
-# Ignore virtual environment folder in automessage-api
-automessage-api/.venv_messageapi/
+# Ignore virtual environment folders
+*.venv/
+venv/
+env/
 
 # Ignore Python cache and build files
 *.pyc
@@ -11,17 +13,19 @@ __pycache__/
 *.pdb
 *.db
 
+# Ignore log files
+*.log
+
 # Ignore VSCode settings (if applicable)
 .vscode/
 
-# Ignore node_modules in automessage-webapp (for React project)
+# automessage-webapp specific ignores
 automessage-webapp/node_modules/
-
-# Ignore build artifacts in automessage-webapp (for React project)
 automessage-webapp/build/
 
 # Ignore npm debug log
 npm-debug.log*
 
-# Ignore log files
-*.log
+# Ignore system-specific files
+.DS_Store
+Thumbs.db

@@ -3,7 +3,7 @@ services:
     image: redis/redis-stack-server:latest
     container_name: redis
     ports:
-      - 6389:6379
+      - 6390:6379
     healthcheck:
       test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
 
@@ -32,17 +32,18 @@ services:
     depends_on:
       - redis
 
-
   react-webapp:
     container_name: react-webapp
     build:
       context: .
       dockerfile: Dockerfile.reactest
     ports:
-      - "3000:3000" # Map React app (Nginx) to localhost:3000
-    volumes:
-      - ./automessage-webapp:/app
+      - "3000:3000" 
     environment:
       - CHOKIDAR_USEPOLLING=true
+    depends_on:
+      - flask-api
+
+    
   
   

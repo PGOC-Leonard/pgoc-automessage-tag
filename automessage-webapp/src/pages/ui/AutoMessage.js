@@ -106,7 +106,8 @@ const AutoMessagePage = () => {
           // If the current time is exactly equal to scheduled time
           if (
             item.schedule_time &&
-            isEqual(new Date(item.task_done_time), new Date(currentTime))
+            isEqual(new Date(item.task_done_time), new Date(currentTime)) && (item.status === "Success" || item.status === "Failed")
+            
           ) {
             addMessage(
               `[${currentTime}] Sending message to conversations created within past 7 days in page: ${item.page_id} with message title: ${item.message_title} - ${item.schedule_date} ${item.schedule_time}.`
@@ -154,7 +155,7 @@ const AutoMessagePage = () => {
     const redis_key = localStorage.getItem("redis_key");
     // Create a new EventSource to listen for SSE data from the Flask server
     const eventSource = new EventSource(
-      `http://localhost:5000/events?key=${redis_key}`
+      `http://192.168.0.19:5000/events?key=${redis_key}`
     );
 
     // Handle incoming messages from the server
