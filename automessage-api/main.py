@@ -4,6 +4,7 @@ import time
 from controllers.schedulemessage import scheduled_blueprint
 from controllers.sseevents import events_blueprint
 from celery_workers.celery_routes import celery_blueprint
+from controllers.tagController import tags_blueprint
 from controllers.schedulercontroller import run_scheduler
 from flask import Flask, Response
 from flask_jwt_extended import JWTManager
@@ -70,7 +71,9 @@ def create_app():
     app.register_blueprint(scheduled_blueprint)
     app.register_blueprint(celery_blueprint)
     
+    
     app.register_blueprint(events_blueprint)
+    app.register_blueprint(tags_blueprint)
         
     return app
 

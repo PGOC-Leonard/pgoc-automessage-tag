@@ -2,6 +2,7 @@ from celery.result import AsyncResult
 from celery_workers.celerytasks import say_hello
 from controllers.RedisController import getScheduledJobsData
 from flask import Blueprint, jsonify , request
+from controllers.TagConversations import handle_tagging
 from controllers.sendscheduledmessages import handlesendingmessage
 from flask_jwt_extended import jwt_required, get_jwt_identity
 
@@ -14,6 +15,22 @@ def test_hello():
     time = "12:59 PM"
     task = say_hello.apply_async(args=[time])
     return jsonify({'task_id': task.id, 'message': f'Scheduled task for {time}'}), 202
+
+@celery_blueprint.route('/test-tagging', methods=['POST'])
+@jwt_required()
+def test_tag():
+    user_id = get_jwt_identity()
+    redis_key = f"{user_id}-access-key"
+    try:
+        task_data = request.get_json()
+        if not task_data:
+            return jsonify({"error" : "No Data provided"}), 400
+        
+        result = handle_tagging(redis_key,task_data)
+        return jsonify(result), 200
+    except Exception as e:
+        return jsonify({"status" : "error", "message": str(e)}), 500
+        
 
 
     

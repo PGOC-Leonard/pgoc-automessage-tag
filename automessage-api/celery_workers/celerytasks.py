@@ -3,10 +3,13 @@ import logging
 from celery import shared_task
 from celery.contrib.abortable import AbortableTask
 from datetime import datetime
+from flask import jsonify
 import pytz
 import time
 import redis
+import requests
 from controllers.RedisController import updateScheduleMessageByFields
+from controllers.TagRedisController import updateTagByFields
 from controllers.sendscheduledmessages import handlesendingmessage
 # Define the timezone for Asia/Manila
 
@@ -129,3 +132,85 @@ def addScheduletoCeleryTask(self, new_jobs):
                 raise e  # Re-raise exception for Celery to log
 
     return "No jobs processed"
+
+@shared_task(base=AbortableTask)
+def TagConversationsCelery(redis_key, tag_id, page_id, access_token, conversations, taskData):
+    """
+    Process the tagging of conversations and dynamically update progress, success, and failure counts.
+    """
+    time.sleep(2)
+    if not conversations:
+        taskData["status"] = "Failed"
+        taskData["error"] = "No conversations found"
+        updateTagByFields(redis_key, taskData)
+        return {"status": "Failed", "error": "No conversations found"}
+    
+    total_conversations = len(conversations)
+    taskData["tagged"] = []  # List of successfully tagged conversation IDs
+    taskData["failtagged"] = []  # List of failed conversation IDs
+    taskData["progress"] = 0  # Progress percentage
+    updateTagByFields(redis_key, taskData)  # Initial update
+
+    tagged = []
+    failtagged = []
+    progress_step = 100 / total_conversations  # Progress increment per conversation
+
+    # Iterate through each conversation
+    for idx, conversation in enumerate(conversations, start=1):
+        from_id = conversation.get("from", {}).get("id")  # Safely access 'from.id'
+        if not from_id:
+            print("No 'from.id' found in this conversation.")
+            failtagged.append({"conversation_id": None, "error": "Missing 'from.id'"})
+            continue
+
+        print(f"Processing from_id: {from_id}")
+        conversation_id = f"{page_id}_{from_id}"
+        toggle_tag_url = f"https://pages.fm/api/v1/pages/{page_id}/conversations/{conversation_id}/toggle_tag?access_token={access_token}"
+
+        payload = {
+            "tag_id": tag_id,
+            "value": 1,
+            "psid": from_id,  # Assuming PSID is obtained from the 'id' field
+            "tag[id]": tag_id,
+        }
+
+        try:
+            tag_response = requests.post(toggle_tag_url, data=payload)
+            tag_response.raise_for_status()  # Raise exception for HTTP errors
+            tag = tag_response.json()
+
+            if tag.get("success"):
+                taskData["tagged"].append(conversation_id)
+                tagged.append({"conversation_id": conversation_id, "status": "Success"})
+            else:
+                taskData["failtagged"].append({"conversation_id": conversation_id, "error": "Tagging failed"})
+                failtagged.append({"conversation_id": conversation_id, "status": "Failed"})
+        except requests.exceptions.RequestException as e:
+            print(f"Error processing conversation {conversation_id}: {e}")
+            taskData["failtagged"].append({"conversation_id": conversation_id, "error": str(e)})
+            failtagged.append({"conversation_id": conversation_id, "error": str(e)})
+        except Exception as e:
+            print(f"Unexpected error for conversation {conversation_id}: {e}")
+            taskData["failtagged"].append({"conversation_id": conversation_id, "error": str(e)})
+            failtagged.append({"conversation_id": conversation_id, "error": str(e)})
+
+        # Update progress dynamically
+        taskData["progress"] = int((idx / total_conversations) * 100)
+        updateTagByFields(redis_key, taskData)  # Update progress, success, and failure counts
+
+    # Determine final status based on results
+    if len(taskData["tagged"]) == total_conversations:
+        taskData["status"] = "Success"
+    else:
+        taskData["status"] = "Failed"
+
+    # Final update with all results
+    updateTagByFields(redis_key, taskData)
+
+    # Return final summary
+    return {
+        "status": taskData["status"],
+        "tagged": tagged,
+        "failtagged": failtagged,
+        "progress": taskData["progress"],
+    }

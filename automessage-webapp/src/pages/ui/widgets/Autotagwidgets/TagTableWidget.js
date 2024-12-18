@@ -133,7 +133,8 @@ function TagTableWidget({ tagtableData, setTableData, fetchInitialData , addmess
         <th className="px-4 py-2 text-center">End Time</th>
         <th className="px-4 py-2 text-center">Scheduled Date</th>
         <th className="px-4 py-2 text-center">Scheduled Time</th>
-        <th className="px-4 py-2 text-center">Batch Status</th>
+        <th className="px-4 py-2 text-center">Batch</th>
+        <th className="px-4 py-2 text-center">Status </th>
         <th className="px-4 py-2 text-center">Total Tags</th>
       </tr>
     </thead>
@@ -150,16 +151,17 @@ function TagTableWidget({ tagtableData, setTableData, fetchInitialData , addmess
           <td className="px-4 py-2 text-center overflow-hidden whitespace-nowrap text-ellipsis max-w-[200px]" title={row.access_token}>
             {row.access_token}
           </td>
-          <td className="px-4 py-2 text-center">{row.iterations}</td>
-          <td className="px-4 py-2 text-center">{row.max_workers}</td>
-          <td className="px-4 py-2 text-center">{row.tag_name}</td>
+          <td className="px-4 py-2 text-center">{row.num_iterations}</td>
+          <td className="px-4 py-2 text-center">{row.maximum_worker}</td>
+          <td className="px-4 py-2 text-center">{row.tag_id_name}</td>
           <td className="px-4 py-2 text-center">{row.start_date}</td>
           <td className="px-4 py-2 text-center">{row.end_date}</td>
           <td className="px-4 py-2 text-center">{row.start_time}</td>
           <td className="px-4 py-2 text-center">{row.end_time}</td>
           <td className="px-4 py-2 text-center">{row.schedule_date}</td>
           <td className="px-4 py-2 text-center">{row.schedule_time}</td>
-          <td className="px-4 py-2 text-center">{row.batch_status}</td>
+          <td className="px-4 py-2 text-center">{row.Batch}</td>
+          <td className="px-4 py-2 text-center">{row.status}</td>
           <td className="px-4 py-2 text-center">{row.total_tags}</td>
         </tr>
       ))}

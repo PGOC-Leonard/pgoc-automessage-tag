@@ -5,10 +5,11 @@ import ShiftWidget from "./widgets/Autotagwidgets/ShiftWidget";
 import ScheduleWidget from "./widgets/Autotagwidgets/TagScheduleWidget";
 import TagTerminalWidget from "./widgets/Autotagwidgets/TagTerminalWidget";
 import TagTableWidget from "./widgets/Autotagwidgets/TagTableWidget";
-import LinearProgress, {
-
-} from "@mui/material/LinearProgress";
+import notify from "../components/Toast.js";
+import LinearProgress from "@mui/material/LinearProgress";
+import { fetchDataTag, saveTagData } from "../../services/AutoTagFunctions.js";
 const AutoTagPage = () => {
+  const apiUrl = process.env.REACT_APP_AUTOMESSAGE_TAG_API_LINK;
   const [progress, setProgress] = React.useState(0);
   const [shiftData, setShiftData] = useState({});
   const [formData, setFormData] = useState({});
@@ -18,12 +19,72 @@ const AutoTagPage = () => {
     "Welcome Philippians to PGOC Auto Tag WebApp",
   ]);
 
-  const fetchInitialData = () => {
-    setTagTableData({});
+  const fetchInitialData = async () => {
+    const redis_key = localStorage.getItem("redis_key");
+  
+    try {
+      const response = await fetchDataTag(redis_key);
+  
+      if (response && response.data) {
+        const Data = response.data; // Get the data from the response
+  
+        // Find the latest index entry
+        const latestIndexData = Data.sort((a, b) => b.index - a.index)[0]; // Sort by index in descending order
+  
+        if (latestIndexData) {
+          // Ensure progress key is present and not None
+          const progressValue = latestIndexData.progress != null ? latestIndexData.progress : 0;
+          setProgress(progressValue);
+        }
+  
+        setTagTableData(Data); // Set the data to state
+        console.log("Table data successfully loaded!", "success");
+      } else {
+        console.log("No data found in Redis.", "info");
+      }
+    } catch (error) {
+      console.error("Error fetching table data:", error);
+    }
   };
+  
 
+  // UseEffect to establish the SSE connection
   useEffect(() => {
     fetchInitialData();
+
+    const redis_key = localStorage.getItem("redis_key");
+    // Create a new EventSource to listen for SSE data from the Flask server
+    const eventSource = new EventSource(`${apiUrl}/tagevents?key=${redis_key}`);
+
+    // Handle incoming messages from the server
+    eventSource.onmessage = (event) => {
+      try {
+        const parsedData = JSON.parse(event.data);
+        console.log("Received SSE:", parsedData);
+
+        // Parse the data if it's JSON formatted (optional, depends on your server)
+
+        // Handle specific signals or events
+        if (parsedData.eventType === "update") {
+          fetchInitialData();
+          console.log("Data was updated", "success");
+          // You can call specific functions here, like fetchInitialData()
+        }
+      } catch (error) {
+        console.error("Error parsing SSE data:", error);
+      }
+    };
+
+    // Handle errors with the SSE connection
+    eventSource.onerror = (error) => {
+      console.error("Error with SSE:", error);
+      eventSource.close(); // Close the connection on error
+    };
+
+    // Clean up the event source when the component unmounts
+    return () => {
+      eventSource.close();
+    };
   }, []); // Runs only once when the component mounts
 
   const addMessage = (newMessage) => {
@@ -71,7 +132,29 @@ const AutoTagPage = () => {
     // Clear the messages from localStorage
   };
 
-  const handleSubmitTag = () => {
+  const validateForm = () => {
+    const missingFields = [];
+
+    // Perform validation for required fields and accumulate missing fields
+    if (!formData.pageId) missingFields.push("Page ID");
+    if (!formData.accessToken) missingFields.push("Access Token");
+    if (!formData.maxWorkers) missingFields.push("Max Workers");
+    if (!formData.number_of_iteration)
+      missingFields.push("Number of Iteration");
+    if (!formData.TagId) missingFields.push("Tag Id");
+
+    // If any field is missing, show error notification
+    if (missingFields.length > 0) {
+      const errorMessage = missingFields.join(", ");
+      notify(`${errorMessage} is missing`, "error"); // Show specific missing field error messages
+      return; // Prevent form submission
+    }
+
+    // If no missing fields, proceed with form submission
+    handleSubmitTag();
+  };
+
+  const handleSubmitTag = async () => {
     const data_scheduled_tag = {
       page_id: formData.pageId,
       access_token: formData.accessToken,
@@ -102,10 +185,43 @@ const AutoTagPage = () => {
       shift: shiftData.shift,
       run_immediately: shiftData.isRunImmediately,
     };
-
-    console.log("Scheduled Tag Data:", data_scheduled_tag);
-    alert(JSON.stringify(data_scheduled_tag, null, 2)); // Optional: Display as a popup
+  
+    try {
+      // Check for duplicates
+      const isDuplicate = tagtableData.some((existingTags) => {
+        return (
+          data_scheduled_tag.page_id === existingTags.page_id &&
+          data_scheduled_tag.access_token === existingTags.access_token &&
+          data_scheduled_tag.maximum_worker === existingTags.maximum_worker &&
+          data_scheduled_tag.tag_id_name === existingTags.tag_id_name &&
+          data_scheduled_tag.start_date === existingTags.start_date &&
+          data_scheduled_tag.end_date === existingTags.end_date &&
+          data_scheduled_tag.start_time === existingTags.start_time &&
+          data_scheduled_tag.end_time === existingTags.end_time &&
+          data_scheduled_tag.schedule_date === existingTags.schedule_date &&
+          data_scheduled_tag.schedule_time === existingTags.schedule_time
+        );
+      });
+  
+      if (isDuplicate) {
+        notify("Duplicate Message: This scheduled message already exists.", "error");
+        return; // Stop processing to prevent saving duplicates
+      }
+  
+      // Save to Redis
+      console.log(data_scheduled_tag);
+      const response = await saveTagData([data_scheduled_tag]);
+  
+      if (response && response.status === 201) {
+        fetchInitialData();
+        notify("Scheduled Message Created", "success");
+      }
+    } catch (error) {
+      console.error("Error saving table data:", error);
+      notify(`${error.message}`, "error");
+    }
   };
+  
 
   return (
     <div className="p-1">
@@ -124,9 +240,7 @@ const AutoTagPage = () => {
           <div className="flex items-center space-x-4 mt-4">
             {/* Submit Button */}
             <button
-              onClick={() =>
-                handleSubmitTag()
-              } // Example to increment progress
+              onClick={() => validateForm()} // Example to increment progress
               className="bg-[#A44444] text-white py-2 px-4 rounded hover:bg-[#861F1F] focus:outline-none "
             >
               Submit

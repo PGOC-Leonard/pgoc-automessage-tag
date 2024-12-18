@@ -10,7 +10,7 @@ import random
 import string
 import json
 
-
+tag_redis = redis.Redis(host='redis', port=6379, db=3, decode_responses=True)
 redis_client = redis.Redis(host='redis', port=6379, db=0, decode_responses=True)
 # Register Route
 def register():
@@ -74,7 +74,7 @@ def login():
         )
 
         # Combine the username to form the base Redis key (without random access key)
-
+        
         redis_key = f"{user.id}-access-key"
 
         print (redis_key)
@@ -109,7 +109,7 @@ def login():
             # Store the new Redis key in Redis and set it to expire in 60 seconds
             redis_value = user.username  # Store the username as value in Redis
             redis_client.setex(redis_key, timedelta(minutes=60), redis_value)  # Expire in 60 seconds
-
+            tag_redis.setex(redis_key, timedelta(minutes=60), redis_value)  # Expire in 60 seconds
             # Update the user's last_active timestamp
             user.last_active = datetime.utcnow()
             db.session.commit()

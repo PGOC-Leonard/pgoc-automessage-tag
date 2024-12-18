@@ -312,8 +312,9 @@ const AutoMessagePage = () => {
       }
 
       // Merge unique messages with existing table data
-
+      
       // Save to Redis
+      console.log(data_scheduled_messages);
       const response = await saveData(data_scheduled_messages);
 
       if (response && response.status === 201) {
