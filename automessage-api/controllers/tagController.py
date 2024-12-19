@@ -7,7 +7,7 @@ import pytz
 import requests
 from controllers.TagConversations import handle_tagging
 from controllers.TagRedisController import saveTagsTask, getTagTasks, updateTagByFields, updateTagData
-from controllers.schedulercontroller import stop_schedule
+from controllers.TagScheduler import run_tagscheduler, stop_tag_schedule
 
 tags_blueprint = Blueprint('tagscheduler', __name__)
 
@@ -82,9 +82,10 @@ def schedule_tags():
                 
                 has_scheduled_message = True
                 update_data['status'] = 'Scheduled'
+                updateTagByFields(redis_key, tagData)
     
         if has_scheduled_message:
-            responses = "Scheduled Tag"
+            responses = run_tagscheduler(redis_key,tagData)
         return jsonify(responses), 201
 
     except Exception as e:
@@ -195,5 +196,43 @@ def update_tag_data ():
             "message": "Schedule updated and re-scheduled successfully",
             "update_response" : db_update_response,
         }), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+@tags_blueprint.route('/stop-tag-schedule/<task_id>', methods = ['POST'])
+@jwt_required()
+def stopTaskchedule(task_id):
+    try:
+        # Call the stop_schedule logic
+        response = stop_tag_schedule(task_id)  # Assumes this returns a dict-like object
+        task_status = response.get("status")
+        task_result = response.get("result")
+
+   
+        return jsonify({
+            "task_id": task_id,
+            "status": task_status,
+            "result": task_result
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+@tags_blueprint.route('/stop-tagging/<task_id>', methods = ['POST'])
+@jwt_required()
+def stopTagging(task_id):
+    try:
+        # Call the stop_schedule logic
+        response = stop_tag_schedule(task_id)  # Assumes this returns a dict-like object
+        task_status = response.get("status")
+        task_result = response.get("result")
+
+   
+        return jsonify({
+            "task_id": task_id,
+            "status": task_status,
+            "result": task_result
+        }), 200
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500

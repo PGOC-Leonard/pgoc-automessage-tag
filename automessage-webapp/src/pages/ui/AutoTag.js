@@ -176,6 +176,7 @@ const AutoTagPage = () => {
         shiftData.endMinute
       ).padStart(2, "0")}:${String(shiftData.endSecond).padStart(2, "0")}`,
       schedule_date: scheduleData.startScheduledDate,
+      schedule_enddate:scheduleData.endScheduledDate,
       schedule_time: `${scheduleData.scheduleHour}:${scheduleData.scheduleMinute} ${scheduleData.scheduleAmPm}`,
       schedule_hour: scheduleData.scheduleHour,
       schedule_minute: scheduleData.scheduleMinute,

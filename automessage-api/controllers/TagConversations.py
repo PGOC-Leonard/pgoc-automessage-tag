@@ -1,19 +1,24 @@
-from datetime import datetime
-from flask import jsonify
-import requests
+
 import time
-
-
 # Tag Execute
 import requests
 from datetime import datetime
 from flask import jsonify
 
-from celery_workers.celerytasks import TagConversationsCelery
 from controllers.TagRedisController import updateTagByFields
 
-
+def stop_tagging(task_id):
+    from celery_workers.celerytasks import TagConversationsCelery
+    task = TagConversationsCelery.AsyncResult(task_id)
+    task.abort()
+    response = {
+        "task_id": task_id,
+        "status": task.status,
+        "result": str(task.result) if task.result else None  # Ensure result is serializable
+    }
+    return response
 def handle_tagging(redis_key, tagTask):
+    from celery_workers.celerytasks import TagConversationsCelery
     print("custom throw")
 
     try:
@@ -63,6 +68,7 @@ def handle_tagging(redis_key, tagTask):
         # Update tagTask with task details
         tagTask["task_id"] = taggingtask.id
         tagTask["task_result"] = str(taggingtask.result)
+        tagTask["status"] = "Ongoing"
         updateTagByFields(redis_key, tagTask)
 
         # Response data for success
