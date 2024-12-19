@@ -1,14 +1,15 @@
+import time
 from celery_workers.celerytasks import addTagScheduletoCelery
 from controllers.TagRedisController import updateTagByFields
 
 def run_tagscheduler( redis_key, taskData):
     
-    
     schedule_tag = addTagScheduletoCelery.apply_async(args=[redis_key,taskData])
+    time.sleep(1)
     taskData["task_id_schedule"] = schedule_tag.id
     taskData["status"] = "Scheduled"
     updateTagByFields(
-                redis_key, taskData)
+            redis_key, taskData)
     
     response_data = {
             "message": "Scheduled Tag Task",
@@ -29,6 +30,8 @@ def stop_tag_schedule(task_id):
         "result": str(task.result) if task.result else None  # Ensure result is serializable
     }
     return response
+
+
 # def update_scheduler(redis_key, updated_job):
 #     """
 #     Update scheduler function.

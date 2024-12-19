@@ -5,7 +5,7 @@ import TextField from "@mui/material/TextField";
 import "./TagFormsWidget.css";
 
 // Assuming the fetchTagList function is in another file
-import { fetchTagList } from '../../../../services/AutoTagFunctions';  // Adjust the import path accordingly
+import { fetchTagList } from "../../../../services/AutoTagFunctions"; // Adjust the import path accordingly
 
 const TagFormsWidget = ({ setFormData }) => {
   const defaultStartDate = new Date();
@@ -34,7 +34,10 @@ const TagFormsWidget = ({ setFormData }) => {
         setError(null); // Reset error before making a new request
 
         try {
-          const data = await fetchTagList(formValues.pageId, formValues.accessToken);
+          const data = await fetchTagList(
+            formValues.pageId,
+            formValues.accessToken
+          );
           setTagOptions(data.tag_texts); // Set the fetched tag options
         } catch (err) {
           setError("Error fetching tag list. Please try again.");
@@ -60,7 +63,10 @@ const TagFormsWidget = ({ setFormData }) => {
   const handleMaxWorkersInput = (e) => {
     const value = e.target.value;
 
-    if (value === "" || (["1", "2", "3"].includes(value) && value.length === 1)) {
+    if (
+      value === "" ||
+      (["1", "2", "3"].includes(value) && value.length === 1)
+    ) {
       handleChange("maxWorkers", value);
     } else {
       e.preventDefault();
@@ -100,7 +106,7 @@ const TagFormsWidget = ({ setFormData }) => {
 
       {/* Inputs Column */}
       <div className="flex flex-col space-y-0 p-0 ml-2 mr-2">
-      <div style={{ height: "2px" }}></div>
+        <div style={{ height: "2px" }}></div>
         <div className="form-group p-0">
           <input
             className="input-text p-1"
@@ -123,11 +129,19 @@ const TagFormsWidget = ({ setFormData }) => {
         <div style={{ height: "14px" }}></div>
         <div className="form-group p-0">
           <Autocomplete
+            freeSolo
             options={tagOptions}
-            value={formValues.TagId}
+            value={formValues.TagId || ""} // Ensure value is always a string
             disableClearable
             disabled={!formValues.pageId || !formValues.accessToken}
-            onChange={(event, newValue) => handleChange("TagId", newValue)}
+            onInputChange={(event, newInputValue) => {
+              // Update the formValues.TagId when manually typing
+              handleChange("TagId", newInputValue);
+            }}
+            onChange={(event, newValue) => {
+              // Update the formValues.TagId when selecting from dropdown
+              handleChange("TagId", newValue);
+            }}
             renderInput={(params) => (
               <TextField
                 {...params}
@@ -135,7 +149,6 @@ const TagFormsWidget = ({ setFormData }) => {
                 variant="outlined"
                 size="small"
                 sx={{
-                  // Styling for the input field
                   "& .MuiOutlinedInput-root": {
                     fontSize: "12px",
                     borderRadius: "var(--border-radius)",

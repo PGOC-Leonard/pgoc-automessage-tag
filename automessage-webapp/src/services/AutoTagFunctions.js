@@ -45,7 +45,7 @@ export const stop_ScheduleTag = async (task_id) => {
     return { error: "Unauthorized" };
   }
 
-  const apiEndpoint = `${baseURL}/stop-schedule/${task_id}`;
+  const apiEndpoint = `${baseURL}/stop-tag-schedule/${task_id}`;
 
   try {
     const response = await fetch(apiEndpoint, {
@@ -58,11 +58,11 @@ export const stop_ScheduleTag = async (task_id) => {
 
     if (response.ok) {
       const data = await response.json();
-      // console.log("Schedule stopped successfully:", data);
+      console.log("Schedule stopped successfully:", data);
       return data;
     } else {
       const errorData = await response.json();
-      // console.error("Failed to stop schedule:", response.status, errorData);
+      console.error("Failed to stop schedule:", response.status, errorData);
       return { error: errorData };
     }
   } catch (error) {
@@ -99,8 +99,8 @@ export const fetchDataTag = async () => {
   }
 };
 
-export const editDataTag = async (editedScheduleData) => {
-  const apiEndpoint = `${baseURL}/update-schedule-message`;
+export const updateTagData = async (editedScheduleData) => {
+  const apiEndpoint = `${baseURL}/update-tag-data`;
   const token = localStorage.getItem("token");
 
   console.log(JSON.stringify(editedScheduleData));

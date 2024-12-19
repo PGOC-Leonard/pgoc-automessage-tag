@@ -152,78 +152,88 @@ def addScheduletoCeleryTask(self, new_jobs):
 @shared_task(bind=True, default_retry_delay=1, max_retries=None, base=AbortableTask)
 def addTagScheduletoCelery(self, redis_key, taskData):
     """
-    Process new jobs and send messages based on schedule_date and schedule_time.
+    Process new jobs and send messages based on schedule_date, schedule_time,
+    schedule_weekly, schedule_pattern, and schedule_enddate.
     """
+    from datetime import datetime, timedelta
+
     index = taskData.get('index')
     page_id = taskData.get('page_id')
     access_token = taskData.get('access_token')
     schedule_date = taskData.get('schedule_date')
     schedule_time = taskData.get('schedule_time')
-
-    # Convert schedule_time to 24-hour format
-    schedule_time_24hr = datetime.strptime(
-        schedule_time, '%I:%M %p').strftime('%H:%M')
-    scheduled_datetime = datetime.strptime(
-        f"{schedule_date} {schedule_time_24hr}", '%Y-%m-%d %H:%M')
-    scheduled_datetime = manila_timezone.localize(scheduled_datetime)
-
-    # Check current time
-    current_time = datetime.now(manila_timezone)
+    schedule_weekly = taskData.get('schedule_weekly', [])  # List of weekdays (e.g., ['Sunday', 'Monday'])
+    schedule_pattern = taskData.get('schedule_pattern', 'once')  # 'once', 'weekly', 'everyday'
+    schedule_enddate = taskData.get('schedule_enddate')  # End date for the task
 
     try:
-        # Initialize or update failure count
+        # Convert schedule_time to 24-hour format
+        schedule_time_24hr = datetime.strptime(schedule_time, '%I:%M %p').strftime('%H:%M')
+        scheduled_datetime = datetime.strptime(f"{schedule_date} {schedule_time_24hr}", '%Y-%m-%d %H:%M')
+        scheduled_datetime = manila_timezone.localize(scheduled_datetime)
+
+        current_time = datetime.now(manila_timezone)
 
         # Validate necessary fields
         if not (page_id and access_token and schedule_date and schedule_time):
-            taskData['task_done_time'] = datetime.now(manila_timezone).strftime('%Y-%m-%d %H:%M:%S')
+            taskData['task_done_time'] = current_time.strftime('%Y-%m-%d %H:%M:%S')
             updateTagByFields(redis_key, taskData)
-            raise ValueError(
-                "Required fields are missing in message data.")
+            raise ValueError("Required fields are missing in task data.")
 
-        # Check for task abortion
+        # Handle task abortion
         if self.is_aborted():
-            taskData['task_done_time'] = datetime.now(manila_timezone).strftime('%Y-%m-%d %H:%M:%S')
+            taskData['task_done_time'] = current_time.strftime('%Y-%m-%d %H:%M:%S')
             taskData['status'] = "STOPPED"
-            success = updateTagByFields(
-                redis_key, taskData)
-
-            if success:
-
+            if updateTagByFields(redis_key, taskData):
                 return "Task stopped"
-            else:
-                return "Task was stopped but failed to update the schedule."
+            return "Task was stopped but failed to update the schedule."
 
-        # Check if it's time to process the task
-        if current_time == scheduled_datetime or current_time >= scheduled_datetime:
-            try:
-                result = handle_tagging(redis_key,taskData)
-                time.sleep(2)
-                response = result.get_json()
-                    
-                taskData['task_done_time'] = datetime.now(manila_timezone).strftime('%Y-%m-%d %H:%M:%S')
-                updateTagByFields(redis_key, taskData)
-                return response , 201  
-            except Exception as e:
-                taskData['task_done_time'] = datetime.now(manila_timezone).strftime('%Y-%m-%d %H:%M:%S')
-                updateTagByFields(redis_key, taskData)
-                
-            # Update status based on the result
-            # Update the message in Redis
-            success = updateTagByFields(
-                redis_key, taskData)
-            if not success:
-                raise ValueError(
-                    "Failed to update message data in Redis after task execution.")
+        # Check schedule end date
+        if schedule_enddate:
+            end_datetime = manila_timezone.localize(datetime.strptime(schedule_enddate, '%Y-%m-%d'))
+            if current_time > end_datetime:
+                taskData['task_done_time'] = current_time.strftime('%Y-%m-%d %H:%M:%S')
+                return "Task ended as per the end date."
 
-            return "Scheduled Tag Task Done"
+        # Check scheduling pattern
+        if schedule_pattern == 'Once':
+            if current_time >= scheduled_datetime:
+                return process_task(self, redis_key, taskData)
 
-        raise self.retry(
-            exc=Exception("Scheduled time not reached."),
-            countdown=1  # Retry after 1 second
-        )
+        elif schedule_pattern == 'Weekly':
+            current_weekday = current_time.strftime('%A')  # Get current day name
+            if current_weekday in schedule_weekly and current_time >= scheduled_datetime:
+                return process_task(self, redis_key, taskData)
+
+        elif schedule_pattern == 'Everyday':
+            if current_time.time() >= scheduled_datetime.time():
+                return process_task(self, redis_key, taskData)
+
+        # Retry until the scheduled time is reached
+        raise self.retry(exc=Exception("Scheduled time not reached."), countdown=1)
 
     except Exception as e:
-        raise e  # Re-raise exception for Celery to log
+        raise e
+
+
+def process_task(self, redis_key, taskData):
+    """
+    Handles task execution.
+    """
+    try:
+        result = handle_tagging(redis_key, taskData)
+        time.sleep(2)
+        response = result.get_json()
+
+        taskData['task_done_time'] = datetime.now(manila_timezone).strftime('%Y-%m-%d %H:%M:%S')
+        updateTagByFields(redis_key, taskData)
+
+        return response, 201
+    except Exception as e:
+        taskData['task_done_time'] = datetime.now(manila_timezone).strftime('%Y-%m-%d %H:%M:%S')
+        updateTagByFields(redis_key, taskData)
+        raise e
+
 
 
 @shared_task(bind=True, base=AbortableTask)
@@ -245,7 +255,7 @@ def TagConversationsCelery(self, redis_key, tag_id, page_id, access_token, conve
     taskData["progress"] = 0 # Progress percentage
     taskData["status"] = "Ongoing"
     updateTagByFields(redis_key, taskData)  # Initial update
-
+    
     tagged = []
     failtagged = []
     progress_step = 100 / total_conversations  # Progress increment per conversation

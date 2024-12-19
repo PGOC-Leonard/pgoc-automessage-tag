@@ -74,8 +74,7 @@ def schedule_tags():
                     tagData['status'] = "Ongoing"
                 else:
                     tagData['status'] = "Failed"
-                    
-                tagData['task_done_time'] = datetime.now(manila_timezone).strftime('%Y-%m-%d %H:%M:%S')
+                
                 updateTagByFields(redis_key, tagData)
                 return response , 201      
             else:
@@ -178,18 +177,19 @@ def update_tag_data ():
         if edited_tag_data.get("status") and edited_tag_data["status"] != "Scheduled":
             return jsonify({'message': 'Only schedules with status "Scheduled" can be edited'}), 400
         
-        # task_id = edited_tag_data.get("task_id")
-        # if task_id:
-        #     stop_response = stop_tagschedule(task_id)
+        task_id = edited_tag_data.get("task_id_schedule")
+        if task_id:
+            stop_response = stop_tag_schedule(task_id)
             
-        #     if stop_response['status'] not in ['ABORTED', 'SUCCESS']:
-        #          # If task is not aborted or successful, do not update and return an error
-        #         return jsonify({"error": "Failed to stop the task, update was not applied"}), 409
+            if stop_response['status'] not in ['ABORTED', 'SUCCESS']:
+                 # If task is not aborted or successful, do not update and return an error
+                return jsonify({"error": "Failed to stop the task, update was not applied"}), 409
         
         db_update_response = updateTagData(redis_key, index, edited_tag_data)
         if db_update_response['status'] != 'success':
             return jsonify({"error": db_update_response.get("message", "Failed to update database")}), 500
         
+        re_run = run_tagscheduler(redis_key,edited_tag_data)
          # Step 5: Return a successful response
         return jsonify({
             "status": "success",

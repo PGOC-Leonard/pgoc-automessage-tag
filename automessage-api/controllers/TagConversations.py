@@ -17,6 +17,7 @@ def stop_tagging(task_id):
         "result": str(task.result) if task.result else None  # Ensure result is serializable
     }
     return response
+
 def handle_tagging(redis_key, tagTask):
     from celery_workers.celerytasks import TagConversationsCelery
     print("custom throw")

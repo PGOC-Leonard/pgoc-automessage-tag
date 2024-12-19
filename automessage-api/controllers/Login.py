@@ -70,7 +70,7 @@ def login():
         # Generate JWT token (identity as string)
         access_token = create_access_token(
             identity=str(user.id),  # Ensure identity is a string
-            expires_delta=timedelta(minutes=30)
+            expires_delta=timedelta(days=1)
         )
 
         # Combine the username to form the base Redis key (without random access key)
@@ -108,8 +108,8 @@ def login():
 
             # Store the new Redis key in Redis and set it to expire in 60 seconds
             redis_value = user.username  # Store the username as value in Redis
-            redis_client.setex(redis_key, timedelta(minutes=60), redis_value)  # Expire in 60 seconds
-            tag_redis.setex(redis_key, timedelta(minutes=60), redis_value)  # Expire in 60 seconds
+            redis_client.setex(redis_key, timedelta(days=7), redis_value)  # Expire in 60 seconds
+            tag_redis.setex(redis_key, timedelta(days=7), redis_value)  # Expire in 60 seconds
             # Update the user's last_active timestamp
             user.last_active = datetime.utcnow()
             db.session.commit()

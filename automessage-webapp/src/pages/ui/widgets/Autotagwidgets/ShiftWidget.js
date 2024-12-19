@@ -5,7 +5,7 @@ import DatePicker from "react-datepicker";
 import Select from "react-select";
 
 const ShiftWidget = ({ setShiftData, onShiftChange }) => {
-  const [runImmediately, setRunImmediately] = useState(false);
+  const [runImmediately, setRunImmediately] = useState(true);
   const [shift, setShift] = useState("AM"); // Default: "AM" shift
 
   const [startDate, setStartDate] = useState(new Date()); // Default start date as current date

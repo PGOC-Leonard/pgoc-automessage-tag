@@ -1,44 +1,44 @@
 import React, { useState, useEffect } from "react";
-import { editData, stop_Schedule } from "../../../../services/AutoMessageFunctions";
 import notify from "../../../components/Toast";
 import DownloadIcon from "@mui/icons-material/Download";
 import StopIcon from "@mui/icons-material/Stop";
 import EditIcon from "@mui/icons-material/Edit";
+import { stop_ScheduleTag, updateTagData } from "../../../../services/AutoTagFunctions";
+import EditDialogTag from "./EditTagWidget";
 
-function TagTableWidget({ tagtableData, setTableData, fetchInitialData , addmessage}) {
+function TagTableWidget({ tagtableData, setTableData, fetchInitialData , addmessage, handleSelectIndex,}) {
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
-  const handleSelectIndex = (index) => {
+  const handleClickRowIndex = (index) => {
     setSelectedIndex(index);
-    // Log the selected row data when an index is selected
-    console.log(index)
-    console.log("Selected row data:", tagtableData[index]);
+    handleSelectIndex(index);
   };
 
-  useEffect(() => {
-    // Reset selectedIndex whenever tableData is updated
-    setSelectedIndex(null);
-  }, [fetchInitialData]);
+  // useEffect(() => {
+  //   // Reset selectedIndex whenever tableData is updated
+  //   setSelectedIndex(null);
+  // }, [fetchInitialData]);
   
   
 
   const stopSchedule = async () => {
     if (selectedIndex !== null) {
       const selectedData = tagtableData[selectedIndex];
-      const taskId = selectedData?.task_id; // Access task_id from selected row data
-      const status = selectedData?.status; // Access status from selected row data
+      const taskId = selectedData?.task_id_schedule; // Access task_id from selected row data
+      const status = selectedData?.status;
+      const Batch= selectedData?.Batch; // Access status from selected row data // Access status from selected row data
   
       if (status === "Scheduled") {
         try {
           // Call the API to stop the schedule
-          const response = await stop_Schedule(taskId);
-          // console.log(response);
+          const response = await stop_ScheduleTag(taskId);
+          console.log(response);
   
           if (response.status === "SUCCESS" || response.result === "Task stopped" || response.status === "ABORTED" ) {
             // await fetchInitialData();
             notify(`Schedule stopped successfully`, "success");
-            addmessage(`Schedule stopped successfully ${taskId}.`)
+            addmessage(`Schedule stopped successfully ${taskId} for ${Batch}`)
              // Refresh table data
           } else if (response.error) {
             notify(`Failed to stop schedule: ${response.error}`, "error");
@@ -49,10 +49,44 @@ function TagTableWidget({ tagtableData, setTableData, fetchInitialData , addmess
           addmessage(`Error stopping schedule: ${error}`);
         }
       } else {
-        notify("Only Scheduled messages are allowed to be stopped.", "error");
+        notify("Only Scheduled Task are allowed to be stopped.", "error");
       }
     } else {
-      notify("No message selected. Please select a message to stop.", "info");
+      notify("No Task selected. Please select a message to stop.", "info");
+    }
+  };
+  
+  const stopTagging = async () => {
+    if (selectedIndex !== null) {
+      const selectedData = tagtableData[selectedIndex];
+      const taskId = selectedData?.task_id; // Access task_id from selected row data
+      const status = selectedData?.status;
+      const Batch= selectedData?.Batch; // Access status from selected row data
+  
+      if (status === "Ongoing") {
+        try {
+          // Call the API to stop the schedule
+          const response = await stop_ScheduleTag(taskId);
+          console.log(response);
+  
+          if (response.status === "SUCCESS" || response.result === "Task stopped" || response.status === "ABORTED" ) {
+            // await fetchInitialData();
+            notify(`Schedule stopped successfully`, "success");
+            addmessage(`Task stopped successfully ${taskId} for ${Batch}`)
+             // Refresh table data
+          } else if (response.error) {
+            notify(`Failed to stop schedule: ${response.error}`, "error");
+            addmessage(`Failed to stop Task: ${response.error}`)
+          } 
+        } catch (error) {
+          notify(`An error occurred: ${error.message}`, "error");
+          addmessage(`Error stopping schedule: ${error}`);
+        }
+      } else {
+        notify("Only Ongoing Task are allowed to be stopped.", "error");
+      }
+    } else {
+      notify("No task selected", "info");
     }
   };
   
@@ -74,11 +108,12 @@ function TagTableWidget({ tagtableData, setTableData, fetchInitialData , addmess
   };
 
   const handleDialogSave = async (updatedData) => {
+    console.log(updatedData);
     try {
       // Destructure the updatedData to get the index and the edited_schedule_data
       const edited_schedule_data  = updatedData;
       // Ensure we are updating the correct index
-      const response = await editData(edited_schedule_data);
+      const response = await updateTagData(edited_schedule_data);
 
       if (response && response.status === 200) {
         console.log("Data updated successfully", response.data);
@@ -109,7 +144,14 @@ function TagTableWidget({ tagtableData, setTableData, fetchInitialData , addmess
           Stop Schedule
         </button>
         <button
-          onClick={() => selectedIndex !== null && stopSchedule(selectedIndex)}
+          onClick={() => selectedIndex !== null && stopTagging(selectedIndex)}
+          className="bg-[#A70000] text-white py-1 px-2 rounded-md hover:bg-[#8A0000]"
+        >
+         <StopIcon fontSize="small"  className="mr-1"/>
+          Stop Tagging
+        </button>
+        <button
+          onClick={console.log("download")}
           className="bg-[#46923c] text-white py-1 px-2 rounded-md hover:bg-[#3b8132]"
         >
           <DownloadIcon fontSize="small"  className="mr-1"/>
@@ -124,7 +166,6 @@ function TagTableWidget({ tagtableData, setTableData, fetchInitialData , addmess
       <tr>
         <th className="px-4 py-2 text-center">Page ID</th>
         <th className="px-4 py-2 text-center">Access Token</th>
-        <th className="px-4 py-2 text-center">Iterations</th>
         <th className="px-4 py-2 text-center">Max Workers</th>
         <th className="px-4 py-2 text-center">Tag Name</th>
         <th className="px-4 py-2 text-center">Start Date</th>
@@ -132,6 +173,7 @@ function TagTableWidget({ tagtableData, setTableData, fetchInitialData , addmess
         <th className="px-4 py-2 text-center">Start Time</th>
         <th className="px-4 py-2 text-center">End Time</th>
         <th className="px-4 py-2 text-center">Scheduled Date</th>
+        <th className="px-4 py-2 text-center">Schedule End Date</th>
         <th className="px-4 py-2 text-center">Scheduled Time</th>
         <th className="px-4 py-2 text-center">Batch</th>
         <th className="px-4 py-2 text-center">Status </th>
@@ -143,7 +185,8 @@ function TagTableWidget({ tagtableData, setTableData, fetchInitialData , addmess
         <tr
           key={index}
           className={`border-t ${selectedIndex === index ? "bg-blue-100" : ""}`}
-          onClick={() => handleSelectIndex(index)}
+          onClick={() => handleClickRowIndex(index)}
+          style={index === 0 ? { backgroundColor: "rgba(0, 255, 0, 0.3)" } : {}}
         >
           <td className="px-4 py-2 text-center overflow-hidden whitespace-nowrap text-ellipsis max-w-[100px]" title={row.page_id}>
             {row.page_id}
@@ -151,7 +194,6 @@ function TagTableWidget({ tagtableData, setTableData, fetchInitialData , addmess
           <td className="px-4 py-2 text-center overflow-hidden whitespace-nowrap text-ellipsis max-w-[200px]" title={row.access_token}>
             {row.access_token}
           </td>
-          <td className="px-4 py-2 text-center">{row.num_iterations}</td>
           <td className="px-4 py-2 text-center">{row.maximum_worker}</td>
           <td className="px-4 py-2 text-center">{row.tag_id_name}</td>
           <td className="px-4 py-2 text-center">{row.start_date}</td>
@@ -159,6 +201,7 @@ function TagTableWidget({ tagtableData, setTableData, fetchInitialData , addmess
           <td className="px-4 py-2 text-center">{row.start_time}</td>
           <td className="px-4 py-2 text-center">{row.end_time}</td>
           <td className="px-4 py-2 text-center">{row.schedule_date}</td>
+          <td className="px-4 py-2 text-center">{row.schedule_enddate}</td>
           <td className="px-4 py-2 text-center">{row.schedule_time}</td>
           <td className="px-4 py-2 text-center">{row.Batch}</td>
           <td className="px-4 py-2 text-center">{row.status}</td>
@@ -169,15 +212,15 @@ function TagTableWidget({ tagtableData, setTableData, fetchInitialData , addmess
   </table>
 </div>
 
-      {/* {isDialogOpen && selectedIndex !== null && (
-        <EditDialogAutoMessage
+      {isDialogOpen && selectedIndex !== null && (
+        <EditDialogTag
           isOpen={isDialogOpen}
           onClose={() => setIsDialogOpen(false)}
           selectedData={tagtableData[selectedIndex]} // Pass selected data
           onSave={handleDialogSave}
           selectedIndex={selectedIndex}
         />
-      )} */}
+      )}
     </div>
   );
 }

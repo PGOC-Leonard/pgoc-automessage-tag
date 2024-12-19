@@ -15,28 +15,66 @@ const AutoTagPage = () => {
   const [formData, setFormData] = useState({});
   const [tagtableData, setTagTableData] = useState([]);
   const [scheduleData, setScheduleData] = useState({});
+  const [progressColor, setProgressColor] = useState("#46923c");
+  const [progressText, setProgressText] = useState(""); // Default green color
+
   const [messages, setMessages] = useState([
     "Welcome Philippians to PGOC Auto Tag WebApp",
   ]);
+  const [selectedIndex, setSelectedIndex] = useState(null);
+
+  const handleSelectIndex = (index) => {
+    setSelectedIndex(index);
+    console.log("Selected index: ", index); // Log the selected index
+
+    // Log the data from tagtableData corresponding to the selected index
+    const selectedData = tagtableData[index]; // Access the row data at the selected index
+    console.log("Selected data: ", selectedData); // Log the row data
+
+    // const progressValue = selectedData.progress != null ? selectedData.progress : 0;
+    // setProgress(progressValue);
+  };
 
   const fetchInitialData = async () => {
     const redis_key = localStorage.getItem("redis_key");
-  
+
     try {
       const response = await fetchDataTag(redis_key);
-  
+
       if (response && response.data) {
         const Data = response.data; // Get the data from the response
-  
+
         // Find the latest index entry
         const latestIndexData = Data.sort((a, b) => b.index - a.index)[0]; // Sort by index in descending order
-  
+
         if (latestIndexData) {
-          // Ensure progress key is present and not None
-          const progressValue = latestIndexData.progress != null ? latestIndexData.progress : 0;
+          const progressValue =
+            latestIndexData.progress != null ? latestIndexData.progress : 0;
           setProgress(progressValue);
+          // Set progress to the first item's progress
+          if (
+            latestIndexData.status === "Failed" ||
+            latestIndexData.status === "STOPPED"
+          ) {
+            setProgressColor("red");
+            setProgressText(latestIndexData.status);
+          } else if (latestIndexData.status === "Success") {
+            setProgressColor("#279100");
+            setProgressText("Success");
+          } else if (latestIndexData.status === "Ongoing") {
+            setProgressColor("#f08d4f");
+            setProgressText("In Progress");
+          }else if (latestIndexData.status === "No Conversations") {
+            setProgressColor("#080404");
+            setProgressText("No Conversations");
+          } else {
+            setProgressColor("#46923c");
+            setProgressText("");
+          }
+
+          // Default green color
         }
-  
+
         setTagTableData(Data); // Set the data to state
         console.log("Table data successfully loaded!", "success");
       } else {
@@ -46,7 +84,6 @@ const AutoTagPage = () => {
       console.error("Error fetching table data:", error);
     }
   };
-  
 
   // UseEffect to establish the SSE connection
   useEffect(() => {
@@ -176,7 +213,7 @@ const AutoTagPage = () => {
         shiftData.endMinute
       ).padStart(2, "0")}:${String(shiftData.endSecond).padStart(2, "0")}`,
       schedule_date: scheduleData.startScheduledDate,
-      schedule_enddate:scheduleData.endScheduledDate,
+      schedule_enddate: scheduleData.endScheduledDate,
       schedule_time: `${scheduleData.scheduleHour}:${scheduleData.scheduleMinute} ${scheduleData.scheduleAmPm}`,
       schedule_hour: scheduleData.scheduleHour,
       schedule_minute: scheduleData.scheduleMinute,
@@ -186,7 +223,7 @@ const AutoTagPage = () => {
       shift: shiftData.shift,
       run_immediately: shiftData.isRunImmediately,
     };
-  
+
     try {
       // Check for duplicates
       const isDuplicate = tagtableData.some((existingTags) => {
@@ -203,16 +240,19 @@ const AutoTagPage = () => {
           data_scheduled_tag.schedule_time === existingTags.schedule_time
         );
       });
-  
+
       if (isDuplicate) {
-        notify("Duplicate Message: This scheduled message already exists.", "error");
+        notify(
+          "Duplicate Message: This scheduled message already exists.",
+          "error"
+        );
         return; // Stop processing to prevent saving duplicates
       }
-  
+
       // Save to Redis
       console.log(data_scheduled_tag);
       const response = await saveTagData([data_scheduled_tag]);
-  
+
       if (response && response.status === 201) {
         fetchInitialData();
         notify("Scheduled Message Created", "success");
@@ -222,7 +262,6 @@ const AutoTagPage = () => {
       notify(`${error.message}`, "error");
     }
   };
-  
 
   return (
     <div className="p-1">
@@ -257,14 +296,16 @@ const AutoTagPage = () => {
                   style={{ height: "25px" }} // Adjust height
                   sx={{
                     "& .MuiLinearProgress-bar": {
-                      backgroundColor: "#46923c", // Custom color for the progress bar
+                      backgroundColor: progressColor, // Custom color for the progress bar
                     },
                     backgroundColor: "#e0e0e0", // Optional: background color for the track
                   }}
                 />
               </div>
               {/* Progress Percentage Text */}
-              <span className="text-[#46923c] font-semibold">{`${progress}%`}</span>
+              <span className="font-semibold" style={{ color: progressColor }}>
+                {`${progress}%`} {progressText}
+              </span>
             </div>
           </div>
         </div>
@@ -283,6 +324,7 @@ const AutoTagPage = () => {
         setTableData={setTagTableData}
         fetchInitialData={fetchInitialData}
         addmessage={addMessage}
+        handleSelectIndex={handleSelectIndex}
       />
     </div>
   );
