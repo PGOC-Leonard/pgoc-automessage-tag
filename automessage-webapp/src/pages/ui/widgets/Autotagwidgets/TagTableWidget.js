@@ -1,14 +1,17 @@
 import React, { useState, useEffect } from "react";
 import notify from "../../../components/Toast";
 import DownloadIcon from "@mui/icons-material/Download";
+import DeleteIcon from "@mui/icons-material/Delete";
 import StopIcon from "@mui/icons-material/Stop";
 import EditIcon from "@mui/icons-material/Edit";
 import {
   stop_ScheduleTag,
   updateTagData,
+  clearData,
 } from "../../../../services/AutoTagFunctions";
 import EditDialogTag from "./EditTagWidget";
 import LinearProgress from "@mui/material/LinearProgress";
+import { saveAs } from "file-saver";
 
 function TagTableWidget({
   tagtableData,
@@ -19,7 +22,7 @@ function TagTableWidget({
 }) {
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-
+  const [clearDisabled, setClearDisabled] = useState(true);
 
   const handleClickRowIndex = (index) => {
     setSelectedIndex(index);
@@ -140,6 +143,131 @@ function TagTableWidget({
     }
   };
 
+  const handleDownload = () => {
+    const filteredData = tagtableData.filter(
+      (row) => row.status !== "Scheduled"
+    );
+
+    const headers = [
+      "Batch",
+      "Page ID",
+      "Access Token",
+      "Shift",
+      "Status",
+      "Tag Name",
+      "Conversations IDs Start Date",
+      "Conversation IDs End Date",
+      "Start Time",
+      "End Time",
+      "Total Tags",
+      "Progress",
+      "Tagged Conversations",
+      "Failed Conversations",
+      "Task ID",
+      "Task Done Time",
+    ];
+
+    // Helper function to escape special characters
+    const escapeCSVValue = (value) => {
+      if (value === null || value === undefined) return ""; // Handle null/undefined
+      const stringValue = String(value).replace(/"/g, '""'); // Escape double quotes
+      return `"${stringValue}"`; // Enclose in quotes
+    };
+
+    // Helper function to format dates
+    const formatDate = (date) => {
+      if (!date) return ""; // Handle empty dates
+      const parsedDate = new Date(date);
+      if (isNaN(parsedDate)) return date; // Return as-is if not a valid date
+      return parsedDate.toISOString().split("T")[0]; // Format as YYYY-MM-DD
+    };
+
+    // Helper function to format arrays
+    const formatArray = (array) => {
+      if (!Array.isArray(array)) return ""; // Handle non-array values
+      return array.join(", "); // Join array items with commas
+    };
+
+    const csvRows = filteredData.map((row) => [
+      escapeCSVValue(row.Batch),
+      escapeCSVValue(row.page_id),
+      escapeCSVValue(row.access_token),
+      escapeCSVValue(row.shift),
+      escapeCSVValue(row.status),
+      escapeCSVValue(row.tag_id_name),
+      escapeCSVValue(formatDate(row.start_date)),
+      escapeCSVValue(formatDate(row.end_date)),
+      escapeCSVValue(row.start_time),
+      escapeCSVValue(row.end_time),
+      escapeCSVValue(row.total_tags),
+      escapeCSVValue(row.progress),
+      escapeCSVValue(formatArray(row.tagged)), // Include full array content
+      escapeCSVValue(formatArray(row.failedtagged)), // Include full array content
+      escapeCSVValue(row.task_id),
+      escapeCSVValue(formatDate(row.tagging_done_time)),
+    ]);
+
+    const csvContent = [headers.map(escapeCSVValue), ...csvRows]
+      .map((row) => row.join(",")) // Join each row by commas
+      .join("\n"); // Join rows with newlines
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+
+    // Prompt the user for a custom file name
+    const currentDate = new Date().toISOString().split("T")[0]; // Format as YYYY-MM-DD
+    const defaultFileName = `${currentDate}-tagdata.csv`;
+    const fileName = prompt(
+      "Enter file name (including .csv extension):",
+      defaultFileName
+    );
+
+    if (!fileName) {
+      notify("Download canceled by user.", "error");
+      return;
+    }
+
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+
+    link.href = url;
+    link.download = fileName; // Use the user-specified file name
+    document.body.appendChild(link);
+    link.click();
+
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    notify("CSV downloaded successfully!", "success");
+    setClearDisabled(false);
+  };
+
+  const handleClear = async () => {
+    // Disable the button immediately to prevent multiple clicks
+    
+  
+    try {
+      // Call the clearData function to clear tag data
+      const result = await clearData();
+  
+      if (result.status === 200) {
+        // Success: you can handle any additional logic on success here
+        setClearDisabled(true);
+      } else {
+        // Failure: handle failure if necessary
+        console.error("Failed to clear data.");
+      }
+    } catch (error) {
+      // In case of error, you can handle failure here as well
+      console.error("Error occurred while clearing data:", error);
+    } finally {
+      // Optionally re-enable the button after the operation completes
+      // setClearDisabled(false);
+    }
+    
+  };
+  
+
+  // ui
   return (
     <div className="w-100 h-[400px] -mt-4 font-montserrat text-[12px]">
       {/* Action Buttons */}
@@ -156,7 +284,7 @@ function TagTableWidget({
           className="bg-[#A70000] text-white py-1 px-2 rounded-md hover:bg-[#8A0000]"
         >
           <StopIcon fontSize="small" className="mr-1" />
-          Stop Schedule
+          Stop
         </button>
         <button
           onClick={() => selectedIndex !== null && stopTagging()}
@@ -166,11 +294,25 @@ function TagTableWidget({
           Stop Tagging
         </button>
         <button
-          onClick={console.log("download")}
+          onClick={handleDownload}
           className="bg-[#46923c] text-white py-1 px-2 rounded-md hover:bg-[#3b8132]"
         >
           <DownloadIcon fontSize="small" className="mr-1" />
           Download
+        </button>
+        <button
+          onClick={handleClear}
+          disabled={clearDisabled}
+          className={`py-1 px-2 rounded-md text-white 
+    ${
+      clearDisabled
+        ? "bg-gray-400 cursor-not-allowed"
+        : "bg-[#A70000] hover:bg-[#8A0000]"
+    }
+  `}
+        >
+          <DeleteIcon fontSize="small" className="mr-1" />
+          Clear All
         </button>
       </div>
 

@@ -6,7 +6,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 import pytz
 import requests
 from controllers.TagConversations import handle_tagging
-from controllers.TagRedisController import saveTagsTask, getTagTasks, updateTagByFields, updateTagData
+from controllers.TagRedisController import removeTagDataByStatus, saveTagsTask, getTagTasks, updateTagByFields, updateTagData
 from controllers.TagScheduler import run_tagscheduler, stop_tag_schedule
 
 tags_blueprint = Blueprint('tagscheduler', __name__)
@@ -232,6 +232,35 @@ def stopTagging(task_id):
             "task_id": task_id,
             "status": task_status,
             "result": task_result
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+@tags_blueprint.route('/remove-tag-data', methods=['DELETE'])
+@jwt_required()
+def remove_tag_data():
+    """
+    Endpoint to remove tag data with specific statuses from Redis.
+    The statuses removed are: 'Success', 'Failed', 'No Conversations', 'Stopped'.
+    """
+    user_id = get_jwt_identity()
+    try:
+        # Generate the Redis key based on the user ID
+        redis_key = f"{user_id}-access-key"
+
+        # Call the function to remove data with the specified statuses
+        result = removeTagDataByStatus(redis_key)
+
+        # Check if the operation was successful
+        if result["status"] != "success":
+            return jsonify({"error": result.get("message", "Failed to remove tag data")}), 500
+
+        # Return a successful response with the updated data
+        return jsonify({
+            "status": "success",
+            "message": "Data with specified statuses removed successfully.",
+            "updated_data": result.get("updated_data", [])
         }), 200
 
     except Exception as e:

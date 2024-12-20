@@ -155,4 +155,34 @@ export const fetchTagList = async (page_id, access_token) => {
       throw error; // Re-throw the error for handling in the calling code
     }
   };
+
+  export const clearData = async () => {
+    const apiEndpoint = `${baseURL}/remove-tag-data`;  // Flask endpoint for clearing data
+    const token = localStorage.getItem("token");  // JWT token
   
+    if (!token) {
+      notify("Unauthorized: No access token", "error");
+      return { error: "Unauthorized" };
+    }
+  
+    try {
+      const response = await fetch(apiEndpoint, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`, // Include token in headers
+        },
+      });
+  
+      const responseData = await response.json();
+      if (!response.ok) {
+        throw new Error(responseData.error || "An error occurred while removing tag data");
+      }
+  
+      notify("Data cleared successfully!", "success");
+      return { status: response.status, data: responseData };  // Return the server's response data
+    } catch (error) {
+      notify(error.message, "error");
+      throw error;  // Re-throw the error for handling in the calling code
+    }
+  };

@@ -70,7 +70,7 @@ def login():
         # Generate JWT token (identity as string)
         access_token = create_access_token(
             identity=str(user.id),  # Ensure identity is a string
-            expires_delta=timedelta(days=1)
+            expires_delta=timedelta(days=2)
         )
 
         # Combine the username to form the base Redis key (without random access key)

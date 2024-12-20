@@ -1,0 +1,11 @@
+/* src/pages/NotFoundPage.css */
+.link {
+    color: blue;
+    text-decoration: none;
+    font-weight: bold;
+  }
+  
+  .link:hover {
+    color: darkblue;
+  }
+  

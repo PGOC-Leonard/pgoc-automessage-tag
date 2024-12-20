@@ -6,6 +6,7 @@ import MainPage from './pages/mainscreen/MainPage';
 import AutoMessagePage from './pages/ui/AutoMessage';
 import AutoTagPage from './pages/ui/AutoTag';
 import LandingPage from './pages/registration/LandingPage';
+import NotFoundPage from './NotFound';
 // Import the layout component
 
 function Router() {
@@ -13,11 +14,13 @@ function Router() {
     <Routes>
       <Route path="/" element={<LandingPage />} /> {/* Login route */}
       
-      <Route path="/main" element={<MainPage />}>
-        <Route index element={<AutoMessagePage />} /> {/* Default route for the main dashboard */}
-        <Route path="automessage" element={<AutoMessagePage />} />
-        <Route path="autotag" element={<AutoTagPage />} />
+      <Route path="/main" element={<ProtectedRoute element={<MainPage />} />}>
+        <Route index element={<ProtectedRoute element={<AutoMessagePage />} />} /> {/* Default route for the main dashboard */}
+        <Route path="automessage" element={<ProtectedRoute element={<AutoMessagePage />} />} />
+        <Route path="autotag" element={<ProtectedRoute element={<AutoTagPage />} />} />
       </Route>
+      {/* Catch-all route for undefined paths */}
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 }

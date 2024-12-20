@@ -185,3 +185,53 @@ def updateTagByFields(redis_key, update_data):
         return {"status": "error", "error": str(e)}
         
 
+def removeTagDataByStatus(redis_key):
+    """
+    Remove data with specific statuses ('Success', 'Failed', 'No Conversations', 'Stopped') from Redis
+    and update indexes and Batch fields for the remaining data.
+    
+    Args:
+        redis_key (str): The Redis key to fetch data from.
+    
+    Returns:
+        dict: Status and message of the operation, along with updated data.
+    """
+    try:
+        # Check if the Redis key exists
+        if not tag_redis.exists(redis_key):
+            return {"status": "error", "message": "Redis key not found or expired"}
+
+        # Fetch current data from Redis
+        current_data = tag_redis.get(redis_key)
+
+        # Parse the current data from Redis into a list of dictionaries
+        try:
+            current_data = json.loads(current_data)
+            if not isinstance(current_data, list):
+                return {"status": "error", "message": "Data in Redis is not in the expected list format"}
+        except (json.JSONDecodeError, ValueError):
+            return {"status": "error", "message": "Invalid data format in Redis"}
+
+        # Statuses to automatically remove
+        statuses_to_remove = ["Success", "Failed", "No Conversations", "STOPPED"]
+
+        # Filter out objects with the specified statuses
+        filtered_data = [tag for tag in current_data if tag.get("status") not in statuses_to_remove]
+
+        # Update the `index` and `Batch` fields to maintain continuity
+        for new_index, tag in enumerate(filtered_data):
+            tag["index"] = new_index
+
+        # Save the updated list back to Redis
+        tag_redis.set(redis_key, json.dumps(filtered_data))
+
+        # Return the updated data
+        return {
+            "status": "success",
+            "message": "Data with specified statuses removed, and indexes updated successfully.",
+            "updated_data": filtered_data,
+        }
+
+    except Exception as e:
+        return {"status": "error", "error": str(e)}
+

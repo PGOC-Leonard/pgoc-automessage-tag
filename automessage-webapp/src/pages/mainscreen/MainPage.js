@@ -17,8 +17,8 @@ const MainPage = () => {
     document.body.style.justifyContent = 'start'
     document.body.style.alignItems = 'start' // Reset body margin to ensure full layout
     // Check token expiration on component mount
-    ///checkTokenExpiration();
-    ///checkInactivity();
+    checkTokenExpiration();
+    checkInactivity();
 
     // Set up event listeners for user activity (mouse move, key press)
     const activityEvents = ["mousemove", "keydown", "scroll"];
@@ -27,8 +27,8 @@ const MainPage = () => {
     );
 
     // Optionally, you could set an interval to check every few seconds
-    //const inactivityInterval = setInterval(checkInactivity, 10000); // Check inactivity every 10 seconds
-    //const interval = setInterval(checkTokenExpiration, 10000); // Check every 10 seconds for token expiration
+    const inactivityInterval = setInterval(checkInactivity, 10000); // Check inactivity every 10 seconds
+    const interval = setInterval(checkTokenExpiration, 10000); // Check every 10 seconds for token expiration
 
     // Cleanup on component unmount
     return () => {
@@ -36,8 +36,8 @@ const MainPage = () => {
       document.body.style.margin = '';
       document.body.style.justifyContent = ''
       document.body.style.alignItems = ''
-      //clearInterval(interval);
-      //clearInterval(inactivityInterval);
+      clearInterval(interval);
+      clearInterval(inactivityInterval);
       activityEvents.forEach((event) =>
         window.removeEventListener(event, updateActivityTime)
       );
@@ -89,7 +89,7 @@ const MainPage = () => {
     const currentTime = Date.now();
 
     // If 5 minutes (300,000ms) have passed since the last activity, log the user out
-    if (lastActivityTime && currentTime - lastActivityTime >= 5 * 60 * 1000) {
+    if (lastActivityTime && currentTime - lastActivityTime >= 15 * 60 * 1000) {
       alert("You have been logged out due to inactivity for 5 minutes.");
       console.log("User is AFK for 5 minutes, logging out...");
       handleLogout();
