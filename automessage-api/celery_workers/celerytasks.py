@@ -234,7 +234,7 @@ def process_task(self, redis_key, taskData):
         updateTagByFields(redis_key, taskData)
         raise e
 
-
+from datetime import datetime
 
 @shared_task(bind=True, base=AbortableTask)
 def TagConversationsCelery(self, redis_key, tag_id, page_id, access_token, conversations, taskData):
@@ -244,40 +244,61 @@ def TagConversationsCelery(self, redis_key, tag_id, page_id, access_token, conve
     time.sleep(2)
 
     if not conversations:
+        current_time = datetime.now(manila_timezone).strftime('%Y-%m-%d %H:%M:%S')
         taskData["status"] = "No Conversations"
         taskData["error"] = "No conversations found"
+        taskData['tagging_done_time'] = current_time
+        taskData["client_messages"] = [f"[{taskData.get('Batch', 'N/A')}] [{current_time}] No Conversations found for tagging."]
         updateTagByFields(redis_key, taskData)
-        return {"status": "Failed", "error": "No conversations found"}
+        return {
+            "status": "Failed",
+            "error": "No conversations found",
+            "client_messages": taskData["client_messages"],
+        }
 
     total_conversations = len(conversations)
     taskData["tagged"] = []  # List of successfully tagged conversation IDs
     taskData["failtagged"] = []  # List of failed conversation IDs
-    taskData["progress"] = 0 # Progress percentage
+    taskData["progress"] = 0  # Progress percentage
+    taskData["total_tags"] = 0  # Initialize total_tags to track successful tags
+    taskData["client_messages"] = [
+        f"[{taskData.get('Batch', 'N/A')}] [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Start tagging conversations from page_id {page_id} with tag_id {tag_id}."
+    ]
     taskData["status"] = "Ongoing"
+
     updateTagByFields(redis_key, taskData)  # Initial update
-    
+
     tagged = []
     failtagged = []
     progress_step = 100 / total_conversations  # Progress increment per conversation
 
     for idx, conversation in enumerate(conversations, start=1):
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
         # Check for task abortion
         if self.is_aborted():
             taskData["task_done_time"] = datetime.now(manila_timezone).strftime('%Y-%m-%d %H:%M:%S')
             taskData["status"] = "STOPPED"
+            taskData["client_messages"].append(
+                f"[{taskData.get('Batch', 'N/A')}] [{current_time}] Task aborted by user."
+            )
             updateTagByFields(redis_key, taskData)
-            
+
             return {
                 "status": "Aborted",
                 "tagged": tagged,
                 "failtagged": failtagged,
                 "progress": taskData["progress"],
-                "message": "Task aborted by user"
+                "client_messages": taskData["client_messages"],
+                "message": "Task aborted by user",
             }
-        
+
         from_id = conversation.get("from", {}).get("id")  # Safely access 'from.id'
         if not from_id:
             failtagged.append({"conversation_id": None, "error": "Missing 'from.id'"})
+            taskData["client_messages"].append(
+                f"[{taskData.get('Batch', 'N/A')}] [{current_time}] Failed to Tag: Missing 'from.id'."
+            )
             continue
 
         conversation_id = f"{page_id}_{from_id}"
@@ -300,17 +321,30 @@ def TagConversationsCelery(self, redis_key, tag_id, page_id, access_token, conve
             if tag.get("success"):
                 taskData["tagged"].append(conversation_id)
                 tagged.append({"conversation_id": conversation_id, "status": "Success"})
+                taskData["total_tags"] += 1
+                taskData["client_messages"].append(
+                    f"[{taskData.get('Batch', 'N/A')}] [{current_time}] Successfully tagged conversation_id {conversation_id}."
+                )
             else:
                 taskData["failtagged"].append(
                     {"conversation_id": conversation_id, "error": "Tagging failed"}
                 )
                 failtagged.append({"conversation_id": conversation_id, "status": "Failed"})
+                taskData["client_messages"].append(
+                    f"[{taskData.get('Batch', 'N/A')}] [{current_time}] Failed to tag conversation_id {conversation_id}."
+                )
         except requests.exceptions.RequestException as e:
             failtagged.append({"conversation_id": conversation_id, "error": str(e)})
             taskData["failtagged"].append({"conversation_id": conversation_id, "error": str(e)})
+            taskData["client_messages"].append(
+                f"[{taskData.get('Batch', 'N/A')}] [{current_time}] Failed to tag conversation_id {conversation_id} due to error: {str(e)}."
+            )
         except Exception as e:
             failtagged.append({"conversation_id": conversation_id, "error": str(e)})
             taskData["failtagged"].append({"conversation_id": conversation_id, "error": str(e)})
+            taskData["client_messages"].append(
+                f"[{taskData.get('Batch', 'N/A')}] [{current_time}] Failed to tag conversation_id {conversation_id} due to error: {str(e)}."
+            )
 
         # Update progress dynamically
         taskData["progress"] = int((idx / total_conversations) * 100)
@@ -320,6 +354,15 @@ def TagConversationsCelery(self, redis_key, tag_id, page_id, access_token, conve
     # Determine final status based on results
     if len(taskData["tagged"]) == total_conversations:
         taskData["status"] = "Success"
+        taskData['tagging_done_time'] = current_time
+        taskData["client_messages"].append(
+            f"[{taskData.get('Batch', 'N/A')}] [{datetime.now(manila_timezone).strftime('%Y-%m-%d %H:%M:%S')}] All conversations tagged successfully."
+        )
+    elif not taskData["tagged"]:
+        taskData['tagging_done_time'] = current_time
+        taskData["client_messages"].append(
+            f"[{taskData.get('Batch', 'N/A')}] [{datetime.now(manila_timezone).strftime('%Y-%m-%d %H:%M:%S')}] No conversations were successfully tagged."
+        )
 
     # Final update with all results
     updateTagByFields(redis_key, taskData)
@@ -329,4 +372,6 @@ def TagConversationsCelery(self, redis_key, tag_id, page_id, access_token, conve
         "tagged": tagged,
         "failtagged": failtagged,
         "progress": taskData["progress"],
+        "total_tags": taskData["total_tags"],
+        "client_messages": taskData["client_messages"],
     }

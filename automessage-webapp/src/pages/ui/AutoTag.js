@@ -8,6 +8,8 @@ import TagTableWidget from "./widgets/Autotagwidgets/TagTableWidget";
 import notify from "../components/Toast.js";
 import LinearProgress from "@mui/material/LinearProgress";
 import { fetchDataTag, saveTagData } from "../../services/AutoTagFunctions.js";
+import { format, isEqual } from "date-fns";
+
 const AutoTagPage = () => {
   const apiUrl = process.env.REACT_APP_AUTOMESSAGE_TAG_API_LINK;
   const [progress, setProgress] = React.useState(0);
@@ -17,6 +19,7 @@ const AutoTagPage = () => {
   const [scheduleData, setScheduleData] = useState({});
   const [progressColor, setProgressColor] = useState("#46923c");
   const [progressText, setProgressText] = useState(""); // Default green color
+  const [selectedDataIndex, setDataIndex] = useState("");
 
   const [messages, setMessages] = useState([
     "Welcome Philippians to PGOC Auto Tag WebApp",
@@ -25,11 +28,14 @@ const AutoTagPage = () => {
 
   const handleSelectIndex = (index) => {
     setSelectedIndex(index);
-    console.log("Selected index: ", index); // Log the selected index
 
     // Log the data from tagtableData corresponding to the selected index
     const selectedData = tagtableData[index]; // Access the row data at the selected index
-    console.log("Selected data: ", selectedData); // Log the row data
+     
+    setDataIndex(selectedData.index)
+    console.log("Data Index:", selectedDataIndex)
+    console.log("Data:", selectedData)
+    // Log the row data
 
     // const progressValue = selectedData.progress != null ? selectedData.progress : 0;
     // setProgress(progressValue);
@@ -37,45 +43,71 @@ const AutoTagPage = () => {
 
   const fetchInitialData = async () => {
     const redis_key = localStorage.getItem("redis_key");
-
+  
     try {
       const response = await fetchDataTag(redis_key);
-
+  
       if (response && response.data) {
-        const Data = response.data; // Get the data from the response
-
-        // Find the latest index entry
-        const latestIndexData = Data.sort((a, b) => b.index - a.index)[0]; // Sort by index in descending order
-
+        const Data = response.data; // Extract data from the response
+  
+        // Find the latest entry based on the index
+        const latestIndexData = Data.sort((a, b) => b.index - a.index)[0]; 
+  
         if (latestIndexData) {
           const progressValue =
             latestIndexData.progress != null ? latestIndexData.progress : 0;
           setProgress(progressValue);
-          // Set progress to the first item's progress
-          if (
-            latestIndexData.status === "Failed" ||
-            latestIndexData.status === "STOPPED"
-          ) {
-            setProgressColor("red");
-            setProgressText(latestIndexData.status);
-          } else if (latestIndexData.status === "Success") {
-            setProgressColor("#279100");
-            setProgressText("Success");
-          } else if (latestIndexData.status === "Ongoing") {
-            setProgressColor("#f08d4f");
-            setProgressText("In Progress");
-          }else if (latestIndexData.status === "No Conversations") {
-            setProgressColor("#080404");
-            setProgressText("No Conversations");
-          } else {
-            setProgressColor("#46923c");
-            setProgressText("");
+  
+          switch (latestIndexData.status) {
+            case "Failed":
+            case "STOPPED":
+              setProgressColor("red");
+              setProgressText(latestIndexData.status);
+              break;
+            case "Success":
+              setProgressColor("#279100");
+              setProgressText("Success");
+              break;
+            case "Ongoing":
+              setProgressColor("#f08d4f");
+              setProgressText("In Progress");
+              break;
+            case "No Conversations":
+              setProgressColor("#080404");
+              setProgressText("No Conversations");
+              break;
+            default:
+              setProgressColor("#46923c");
+              setProgressText("");
+              break;
           }
-
-          // Default green color
+  
+          const currentTime = new Date(); // Get the current time
+  
+          // Process each item in the data array
+          Data.forEach((dataItem) => {
+            if (dataItem.client_messages) {
+              if (dataItem.tagging_done_time) {
+                const taggingDoneTime = new Date(dataItem.tagging_done_time);
+                const timeDifference = (currentTime - taggingDoneTime) / 1000; // Time difference in seconds
+  
+                // Add messages only if time difference is <= 60 seconds
+                if (timeDifference <= 30) {
+                  dataItem.client_messages.forEach((message) => {
+                    addMessage(`${message}`);
+                  });
+                }
+              } else {
+                // If `tagging_done_time` is not present, always add messages
+                dataItem.client_messages.forEach((message) => {
+                  addMessage(`${message}`);
+                });
+              }
+            }
+          });
         }
-
-        setTagTableData(Data); // Set the data to state
+  
+        setTagTableData(Data); // Update state with the fetched data
         console.log("Table data successfully loaded!", "success");
       } else {
         console.log("No data found in Redis.", "info");
@@ -84,6 +116,7 @@ const AutoTagPage = () => {
       console.error("Error fetching table data:", error);
     }
   };
+  
 
   // UseEffect to establish the SSE connection
   useEffect(() => {
@@ -128,14 +161,9 @@ const AutoTagPage = () => {
     if (newMessage.trim() !== "") {
       setMessages((prevMessages) => {
         // Normalize the message by removing content inside square brackets
-        const normalize = (message) => message.replace(/\[.*?\]/g, "");
-
-        const normalizedNewMessage = normalize(newMessage);
 
         // Check if the normalized message already exists
-        const isDuplicate = prevMessages.some(
-          (msg) => normalize(msg) === normalizedNewMessage
-        );
+        const isDuplicate = prevMessages.some((msg) => msg === newMessage);
 
         if (!isDuplicate) {
           // Add the new message if no duplicate is found
