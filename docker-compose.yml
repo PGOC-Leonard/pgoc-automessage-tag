@@ -18,7 +18,8 @@ services:
     volumes:
       - ./automessage-api:/app
     environment:
-      FLASK_ENV: development # Optional: set the Flask environment
+      FLASK_ENV: development
+      TZ: Asia/Manila # Set timezone to Asia/Manila # Optional: set the Flask environment
     
   celery:
     container_name: celery
