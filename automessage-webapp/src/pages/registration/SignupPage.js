@@ -2,7 +2,14 @@ import React, { useState } from "react";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import notify from "../components/Toast"; // Import toast notification component
-import { Radio, RadioGroup, FormControlLabel, FormControl, FormLabel } from "@mui/material"; // Import MUI components
+import {
+  Radio,
+  RadioGroup,
+  FormControlLabel,
+  FormControl,
+  FormLabel,
+  CircularProgress, // Import CircularProgress
+} from "@mui/material"; // Import MUI components
 
 const SignupPage = ({ onSwitchToLogin }) => {
   const apiUrl = process.env.REACT_APP_AUTOMESSAGE_TAG_API_LINK;
@@ -15,11 +22,11 @@ const SignupPage = ({ onSwitchToLogin }) => {
   const [errorMessage, setErrorMessage] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
+  const [loading, setLoading] = useState(false); // New loading state
   const navigate = useNavigate();
 
   const validateEmail = (email) => {
-    // Regular expression for validating email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; // Regular expression for validating email
     return emailRegex.test(email);
   };
 
@@ -49,6 +56,7 @@ const SignupPage = ({ onSwitchToLogin }) => {
 
     // Prepare the sign-up data
     const signUpData = { username, email, password, gender };
+    setLoading(true); // Set loading to true before making the API request
 
     try {
       const response = await fetch(`${apiUrl}/register`, {
@@ -74,6 +82,8 @@ const SignupPage = ({ onSwitchToLogin }) => {
       setErrorMessage("An error occurred while trying to register");
       notify("An error occurred while trying to register", "error");
       console.error("Sign up failed:", error);
+    } finally {
+      setLoading(false); // Set loading to false after the API request completes
     }
   };
 
@@ -138,7 +148,7 @@ const SignupPage = ({ onSwitchToLogin }) => {
             {confirmPasswordVisible ? <FaEyeSlash /> : <FaEye />}
           </span>
         </div>
-        <div style={{ height: "5px"}}></div>
+        <div style={{ height: "5px" }}></div>
 
         {/* Gender Selector using MUI Radio buttons */}
         <div className="gender-selector">
@@ -157,7 +167,10 @@ const SignupPage = ({ onSwitchToLogin }) => {
         </div>
 
         <div style={{ height: "20px" }}></div>
-        <button type="submit">Register</button>
+        
+        <button type="submit" disabled={loading}>
+          {loading ? <CircularProgress size={24} /> : "Register"}
+        </button>
       </form>
     </div>
   );

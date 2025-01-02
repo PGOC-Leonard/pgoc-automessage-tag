@@ -1,20 +1,20 @@
-import React, { useState , useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import Logo from "../../assets/PGOC_TOP_LEFT_ICON.png";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import 'react-toastify/dist/ReactToastify.css'; 
 import { isTokenExpired } from '../../utils/utils';
 import { useNavigate } from 'react-router-dom';
-import notify from '../components/Toast'
-
+import notify from '../components/Toast';
+import { CircularProgress } from '@mui/material'; // Import CircularProgress
 
 const LoginPage = () => {
   const apiUrl = process.env.REACT_APP_AUTOMESSAGE_TAG_API_LINK;
   const [usernameOrEmail, setUsernameOrEmail] = useState(''); // Changed to accept either username or email
   const [password, setPassword] = useState('');
-  const [errorMessage, setErrorMessage] = useState(''); 
+  const [errorMessage, setErrorMessage] = useState('');
   const [passwordVisible, setPasswordVisible] = useState(false);
+  const [loading, setLoading] = useState(false); // New loading state
   const navigate = useNavigate(); // State for password visibility
-
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -24,16 +24,13 @@ const LoginPage = () => {
     }
   }, [navigate]);
 
-
   const handleOnSubmit = (evt) => {
+    evt.preventDefault(); // Prevent default form submission behavior
     handleLogin();
   };
 
-
-  const handleLogin = async (e) => {
-    e.preventDefault();
-
-    // Perform simple validation (optional)
+  const handleLogin = async () => {
+    // Validate input fields
     if (!usernameOrEmail || !password) {
       setErrorMessage('Please enter both username/email and password');
       return;
@@ -41,9 +38,9 @@ const LoginPage = () => {
 
     // Prepare login data (either username or email with password)
     const loginData = { username: usernameOrEmail, password };
+    setLoading(true); // Set loading to true before making the API request
 
     try {
-      // Make the POST request to your API (replace with your actual backend URL)
       const response = await fetch(`${apiUrl}/login`, {
         method: 'POST',
         headers: {
@@ -81,6 +78,8 @@ const LoginPage = () => {
       setErrorMessage('An error occurred while trying to log in');
       notify('An error occurred while trying to log in', 'error');
       console.error('Login failed:', error);
+    } finally {
+      setLoading(false); // Set loading to false after the API request completes
     }
   };
 
@@ -95,8 +94,10 @@ const LoginPage = () => {
           <img src={Logo} alt="Logo" />
         </div>
         <h1 className="login-page-title">Log in</h1>
+        {errorMessage && <p className="error-message">{errorMessage}</p>} {/* Display error message */}
+
         <input
-          type="email"
+          type="text"
           placeholder="Username / Email"
           name="email"
           value={usernameOrEmail}
@@ -116,7 +117,11 @@ const LoginPage = () => {
           </span>
         </div>
         <a href="#">Forgot your password?</a>
-        <button onClick={handleLogin}>Log In</button>
+        
+        {/* Button that becomes disabled and shows a loading spinner while waiting for response */}
+        <button type="submit" disabled={loading}>
+          {loading ? <CircularProgress size={24} /> : "Log In"}
+        </button>
       </form>
     </div>
   );
