@@ -1,12 +1,11 @@
 services:
-
   redis:
     image: redis/redis-stack-server:latest
     container_name: redis
     ports:
-      - 6390:6379
+      - "6390:6379"
     healthcheck:
-      test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
 
   flask-api:
     container_name: automessage-api
@@ -19,8 +18,24 @@ services:
       - ./automessage-api:/app
     environment:
       FLASK_ENV: development
-      TZ: Asia/Manila # Set timezone to Asia/Manila # Optional: set the Flask environment
-    
+      MYSQL_HOST: mysql
+      MYSQL_USER: root
+      MYSQL_PASSWORD: password
+      MYSQL_DB: automessage_tag_db
+      MYSQL_PORT: 3306
+      REDIS_URL: redis://redis:6379/0
+      TZ: Asia/Manila
+    depends_on:
+      - redis
+      - mysql
+    healthcheck:
+      test: ["CMD", "mysql", "-h", "mysql", "-u", "root", "-ppassword", "-e", "SELECT 1;"]
+      retries: 5
+      interval: 10s
+      start_period: 10s
+      timeout: 10s
+    # Only start flask-api once mysql is healthy
+
   celery:
     container_name: celery
     build:
@@ -30,9 +45,33 @@ services:
     volumes:
       - ./automessage-api:/app
     environment:
-      - TZ=Asia/Manila # Set timezone to Asia/Manila
+      TZ: Asia/Manila
+      MYSQL_HOST: mysql
+      MYSQL_USER: root
+      MYSQL_PASSWORD: password
+      MYSQL_DB: automessage_tag_db
+      MYSQL_PORT: 3306
     depends_on:
       - redis
+      - mysql
+
+  mysql:
+    image: mysql:8.0
+    container_name: mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: automessage_tag_db
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysql", "-h", "localhost", "-u", "root", "-ppassword", "-e", "SELECT 1;"]
+      retries: 5
+      interval: 10s
+      start_period: 10s
+      timeout: 10s
+    # MySQL needs to be healthy before starting flask-api
 
   react-webapp:
     container_name: react-webapp
@@ -45,3 +84,6 @@ services:
       - CHOKIDAR_USEPOLLING=true
     depends_on:
       - flask-api
+
+volumes:
+  mysql_data:

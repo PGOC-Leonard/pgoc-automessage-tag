@@ -1,9 +1,25 @@
 import os
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 class Config:
-    # Read database URI from environment variable (use a default if not set)
-    SQLALCHEMY_DATABASE_URI = os.getenv('SQLALCHEMY_DATABASE_URI', 'sqlite:///users.db')  # Default is SQLite
-    SQLALCHEMY_TRACK_MODIFICATIONS = False  # Disable tracking modifications for performance
-    
-    # Read the secret key from environment variable (use a default if not set)
-    SECRET_KEY = os.getenv('SECRET_KEY', 'your_secret_key_here')  # Default secret key (should not be used in production)
+    # MySQL Database URI
+    MYSQL_HOST = os.getenv('MYSQL_HOST', 'mysql')  # Use the service name 'mysql' from docker-compose.yml
+    MYSQL_USER = os.getenv('MYSQL_USER', 'root')
+    MYSQL_PASSWORD = os.getenv('MYSQL_PASSWORD', 'password')
+    MYSQL_DB = os.getenv('MYSQL_DB', 'automessage_tag_db')
+    MYSQL_PORT = os.getenv('MYSQL_PORT', '3306')
+
+    # SQLAlchemy Database URI
+    SQLALCHEMY_DATABASE_URI = (
+        f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DB}"
+    )
+    SQLALCHEMY_TRACK_MODIFICATIONS = False  # Disable SQLAlchemy modification tracking
+
+    # Other configurations
+    SECRET_KEY = os.getenv('SECRET_KEY', 'your_secret_key_here')
+    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'your_jwt_secret_key')
+    CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://redis:6379/1')
+    CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://redis:6379/1')
