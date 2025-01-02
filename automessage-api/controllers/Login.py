@@ -13,10 +13,13 @@ import json
 import mysql.connector
 import shutil
 import base64
+from werkzeug.utils import secure_filename
+from PIL import Image
+import io
 
 load_dotenv()
 
-
+MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10MB
 tag_redis = redis.Redis(host='redis', port=6379, db=3, decode_responses=True)
 redis_client = redis.Redis(host='redis', port=6379, db=0, decode_responses=True)
 
@@ -204,3 +207,77 @@ def get_user_data_by_id():
     finally:
         cursor.close()
         connection.close()
+
+# Helper function to check image size
+def allowed_image_size(image):
+    if len(image) > MAX_IMAGE_SIZE:
+        return False
+    return True
+
+def change_profile_image():
+    data = request.form.to_dict()  # To handle form-data
+    user_id = data.get('user_id')
+    
+    if not user_id:
+        return jsonify({'message': 'User ID is required'}), 400
+    
+    # Check if file is in the request
+    if 'profile_image' not in request.files:
+        return jsonify({'message': 'No file part'}), 400
+    
+    file = request.files['profile_image']
+
+    # Check if the file is an image and within size limit
+    if file:
+        file.seek(0)  # Reset file pointer before reading
+        if not allowed_image_size(file.read()):
+            return jsonify({'message': 'File is too large. Maximum size is 10MB.'}), 400
+        file.seek(0)  # Reset file pointer for image processing
+
+        try:
+            # Open the image with PIL to check its type (optional)
+            image = Image.open(file)
+            image_format = image.format.lower()
+
+            # Check if the image format is valid
+            if image_format not in ['jpeg', 'png', 'jpg']:
+                return jsonify({'message': 'Invalid image format. Only JPEG, JPG, or PNG are allowed.'}), 400
+
+            # Reduce the resolution of the image to a smaller size (optional)
+            max_dimension = 800  # Set a max dimension for width or height
+            image.thumbnail((max_dimension, max_dimension))  # Resize to fit within max_dimension x max_dimension
+
+            # Convert the image to a byte array
+            image_byte_array = io.BytesIO()
+            image.save(image_byte_array, format=image_format)
+
+            # Get the binary data of the image
+            image_data = image_byte_array.getvalue()
+
+            # Check if the image size is within allowed limits
+            if not allowed_image_size(image_data):
+                return jsonify({'message': 'Resized image is too large. Maximum size is 10MB.'}), 400
+
+            # Connect to database and update the profile image as BLOB
+            connection = get_db_connection()
+            cursor = connection.cursor(dictionary=True)
+
+            try:
+                # Update the profile image in the database as BLOB
+                cursor.execute(
+                    "UPDATE users SET profile_image = %s WHERE id = %s",
+                    (image_data, user_id)
+                )
+                connection.commit()
+
+                return jsonify({'message': 'Profile image updated successfully'}), 200
+
+            finally:
+                cursor.close()
+                connection.close()
+        
+        except Exception as e:
+            return jsonify({'message': f'Error processing the image: {str(e)}'}), 500
+    
+    else:
+        return jsonify({'message': 'No file uploaded or invalid file.'}), 400

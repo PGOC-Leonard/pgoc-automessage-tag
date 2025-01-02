@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import notify from "../components/Toast"; // Import toast notification component
+import { Radio, RadioGroup, FormControlLabel, FormControl, FormLabel } from "@mui/material"; // Import MUI components
 
 const SignupPage = ({ onSwitchToLogin }) => {
   const apiUrl = process.env.REACT_APP_AUTOMESSAGE_TAG_API_LINK;
@@ -9,6 +10,7 @@ const SignupPage = ({ onSwitchToLogin }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [gender, setGender] = useState(""); // New state for gender
 
   const [errorMessage, setErrorMessage] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
@@ -25,7 +27,7 @@ const SignupPage = ({ onSwitchToLogin }) => {
     e.preventDefault();
 
     // Validate required fields
-    if (!username || !email || !password || !confirmPassword) {
+    if (!username || !email || !password || !confirmPassword || !gender) {
       setErrorMessage("All fields are required");
       notify("All fields are required", "error");
       return;
@@ -46,7 +48,7 @@ const SignupPage = ({ onSwitchToLogin }) => {
     }
 
     // Prepare the sign-up data
-    const signUpData = { username, email, password };
+    const signUpData = { username, email, password, gender };
 
     try {
       const response = await fetch(`${apiUrl}/register`, {
@@ -86,8 +88,9 @@ const SignupPage = ({ onSwitchToLogin }) => {
   return (
     <div className="form-container sign-up-container">
       <form onSubmit={handleSignUp}>
-        <h1 className="login-page-title" >Create Account</h1>
+        <h1 className="login-page-title">Create Account</h1>
         {errorMessage && <p className="error-message">{errorMessage}</p>}
+
         <input
           type="text"
           name="name"
@@ -104,6 +107,7 @@ const SignupPage = ({ onSwitchToLogin }) => {
           placeholder="Email"
           required
         />
+
         <div className="pass-input-div">
           <input
             type={passwordVisible ? "text" : "password"}
@@ -117,6 +121,7 @@ const SignupPage = ({ onSwitchToLogin }) => {
             {passwordVisible ? <FaEyeSlash /> : <FaEye />}
           </span>
         </div>
+
         <div className="pass-input-div">
           <input
             type={confirmPasswordVisible ? "text" : "password"}
@@ -133,6 +138,24 @@ const SignupPage = ({ onSwitchToLogin }) => {
             {confirmPasswordVisible ? <FaEyeSlash /> : <FaEye />}
           </span>
         </div>
+        <div style={{ height: "5px"}}></div>
+
+        {/* Gender Selector using MUI Radio buttons */}
+        <div className="gender-selector">
+          <FormControl component="fieldset" required>
+            <FormLabel component="legend">Gender</FormLabel>
+            <RadioGroup
+              row
+              value={gender}
+              onChange={(e) => setGender(e.target.value)}
+              aria-label="gender"
+            >
+              <FormControlLabel value="male" control={<Radio />} label="Male" />
+              <FormControlLabel value="female" control={<Radio />} label="Female" />
+            </RadioGroup>
+          </FormControl>
+        </div>
+
         <div style={{ height: "20px" }}></div>
         <button type="submit">Register</button>
       </form>

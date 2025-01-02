@@ -56,6 +56,7 @@ const LoginPage = () => {
 
       if (response.ok) {
         // Store the JWT token in localStorage
+        localStorage.setItem('user_id', data.user_id);
         localStorage.setItem('token', data.access_token);
         localStorage.setItem('redis_key', data.redis_key);  // Store the token
         localStorage.setItem('isAuthenticated', 'true'); // Store isAuthenticated flag

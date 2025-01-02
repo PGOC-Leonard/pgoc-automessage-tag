@@ -11,7 +11,7 @@ from controllers.sseevents import events_blueprint
 from celery_workers.celery_routes import celery_blueprint
 from controllers.tagController import tags_blueprint
 from controllers.schedulercontroller import run_scheduler
-from controllers.Login import get_user_data_by_id, register, login
+from controllers.Login import change_profile_image, get_user_data_by_id, register, login
 from config.config import Config
 from config.celery_config import celery_init_app
 import mysql.connector
@@ -68,7 +68,7 @@ def create_app():
                 email VARCHAR(100) NOT NULL UNIQUE,
                 password VARCHAR(255) NOT NULL,
                 gender ENUM('male', 'female') NOT NULL,  -- Adding gender column
-                profile_image BLOB,  -- Adding profile_image column to store image data
+                profile_image LONGBLOB,  -- Adding profile_image column to store image data
                 last_active DATETIME DEFAULT CURRENT_TIMESTAMP
             );
         """)
@@ -92,6 +92,7 @@ def create_app():
     app.route('/register', methods=['POST'])(register)
     app.route('/login', methods=['POST'])(login)
     app.route('/user', methods=['POST'])(get_user_data_by_id)
+    app.route('/change-profile', methods=['PUT'])(change_profile_image)
     app.register_blueprint(scheduled_blueprint)
     app.register_blueprint(celery_blueprint)
     app.register_blueprint(events_blueprint)
