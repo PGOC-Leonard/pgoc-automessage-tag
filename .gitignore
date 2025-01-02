@@ -6,6 +6,13 @@
 venv/
 env/
 
+# Ignore Python virtual environment in automessage-api
+automessage-api/.venv_message/
+# Ignore Python virtual environment in automessage-api
+automessage-api/.venv_messageapi/
+
+
+
 # Ignore Python cache and build files
 *.pyc
 *.pyo
