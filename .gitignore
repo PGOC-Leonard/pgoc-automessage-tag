@@ -12,6 +12,7 @@ automessage-api/.venv_message/
 automessage-api/.venv_messageapi/
 # Ignore Python virtual environment in automessage-api
 automessage-api/.venv_automessage/
+mysql_data/
 
 
 

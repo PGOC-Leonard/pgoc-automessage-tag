@@ -19,8 +19,8 @@ services:
     environment:
       FLASK_ENV: development
       MYSQL_HOST: mysql
-      MYSQL_USER: root
-      MYSQL_PASSWORD: password
+      MYSQL_USER: PGOCADMIN
+      MYSQL_PASSWORD: "@_PGOCEncrypted54."
       MYSQL_DB: automessage_tag_db
       MYSQL_PORT: 3306
       REDIS_URL: redis://redis:6379/0
@@ -29,12 +29,11 @@ services:
       - redis
       - mysql
     healthcheck:
-      test: ["CMD", "mysql", "-h", "mysql", "-u", "root", "-ppassword", "-e", "SELECT 1;"]
+      test: ["CMD", "mysql", "-h", "mysql", "-u", "PGOCADMIN", "-p@_PGOCEncrypted54.", "-e", "SELECT 1;"]
       retries: 5
       interval: 10s
       start_period: 10s
       timeout: 10s
-    # Only start flask-api once mysql is healthy
 
   celery:
     container_name: celery
@@ -47,10 +46,10 @@ services:
     environment:
       TZ: Asia/Manila
       MYSQL_HOST: mysql
-      MYSQL_USER: root
-      MYSQL_PASSWORD: password
+      MYSQL_USER: PGOCADMIN
+      MYSQL_PASSWORD: "@_PGOCEncrypted54."
       MYSQL_DB: automessage_tag_db
-      MYSQL_PORT: 3306
+      MYSQL_PORT: 3308
     depends_on:
       - redis
       - mysql
@@ -59,19 +58,20 @@ services:
     image: mysql:8.0
     container_name: mysql
     ports:
-      - "3306:3306"
+      - "3308:3306" # Map MySQL container port 3306 to host port 3308
     environment:
-      MYSQL_ROOT_PASSWORD: password
+      MYSQL_ROOT_PASSWORD: "@_PGOCEncrypted54."
       MYSQL_DATABASE: automessage_tag_db
+      MYSQL_USER: PGOCADMIN
+      MYSQL_PASSWORD: "@_PGOCEncrypted54." # Password for PGOCADMIN
     volumes:
-      - mysql_data:/var/lib/mysql
+      - ./mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysql", "-h", "localhost", "-u", "root", "-ppassword", "-e", "SELECT 1;"]
+      test: ["CMD", "mysql", "-h", "localhost", "-u", "PGOCADMIN", "-p@_PGOCEncrypted54.", "-e", "SELECT 1;"]
       retries: 5
       interval: 10s
       start_period: 10s
       timeout: 10s
-    # MySQL needs to be healthy before starting flask-api
 
   react-webapp:
     container_name: react-webapp

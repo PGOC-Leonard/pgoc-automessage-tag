@@ -7,8 +7,8 @@ load_dotenv()
 class Config:
     # MySQL Database URI
     MYSQL_HOST = os.getenv('MYSQL_HOST', 'mysql')  # Use the service name 'mysql' from docker-compose.yml
-    MYSQL_USER = os.getenv('MYSQL_USER', 'root')
-    MYSQL_PASSWORD = os.getenv('MYSQL_PASSWORD', 'password')
+    MYSQL_USER = os.getenv('MYSQL_USER', 'PGOCADMIN')
+    MYSQL_PASSWORD = os.getenv('MYSQL_PASSWORD', '@_PGOCEncrypted54.')
     MYSQL_DB = os.getenv('MYSQL_DB', 'automessage_tag_db')
     MYSQL_PORT = os.getenv('MYSQL_PORT', '3306')
 
