@@ -91,16 +91,16 @@ function TagTableWidget({
             response.status === "ABORTED"
           ) {
             // await fetchInitialData();
-            notify(`Schedule stopped successfully`, "success");
+            notify(`Tagging stopped successfully`, "success");
             addmessage(`Task stopped successfully ${taskId} for ${Batch}`);
             // Refresh table data
           } else if (response.error) {
-            notify(`Failed to stop schedule: ${response.error}`, "error");
+            notify(`Failed to stop Tagging: ${response.error}`, "error");
             addmessage(`Failed to stop Task: ${response.error}`);
           }
         } catch (error) {
           notify(`An error occurred: ${error.message}`, "error");
-          addmessage(`Error stopping schedule: ${error}`);
+          addmessage(`Error stopping Tagging: ${error}`);
         }
       } else {
         notify("Only Ongoing Task are allowed to be stopped.", "error");

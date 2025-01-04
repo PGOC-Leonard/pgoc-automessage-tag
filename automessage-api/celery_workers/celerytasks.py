@@ -237,141 +237,178 @@ def process_task(self, redis_key, taskData):
 from datetime import datetime
 
 @shared_task(bind=True, base=AbortableTask)
-def TagConversationsCelery(self, redis_key, tag_id, page_id, access_token, conversations, taskData):
+def TagConversationsCelery(self, redis_key, tag_index, tag_id, tag_id_name, page_id, access_token, start_epoch_time, end_epoch_time, taskData):
     """
     Process the tagging of conversations and dynamically update progress, success, and failure counts.
+    Handles multiple iterations of API calls until no more conversations are found.
     """
     time.sleep(2)
-
-    if not conversations:
-        current_time = datetime.now(manila_timezone).strftime('%Y-%m-%d %H:%M:%S')
-        taskData["status"] = "No Conversations"
-        taskData["error"] = "No conversations found"
-        taskData['tagging_done_time'] = current_time
-        taskData["client_messages"] = [f"[{taskData.get('Batch', 'N/A')}] [{current_time}] No Conversations found for tagging."]
-        updateTagByFields(redis_key, taskData)
-        return {
-            "status": "Failed",
-            "error": "No conversations found",
-            "client_messages": taskData["client_messages"],
-        }
-
-    total_conversations = len(conversations)
-    taskData["tagged"] = []  # List of successfully tagged conversation IDs
-    taskData["failtagged"] = []  # List of failed conversation IDs
-    taskData["progress"] = 0  # Progress percentage
-    taskData["total_tags"] = 0  # Initialize total_tags to track successful tags
-    taskData["client_messages"] = [
-        f"[{taskData.get('Batch', 'N/A')}] [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Start tagging conversations from page_id {page_id} with tag_id {tag_id}."
-    ]
+    tagged = []
+    failtagged = []
+    iteration = 1
+    total_tagged = 0
+    total_failed = 0
+    grand_total_conversations = 0  # NEW: Cumulative conversation count
+    taskData["client_messages"] = []
+    taskData["tagged"] = []
+    taskData["failtagged"] = []
+    taskData["progress"] = 0
+    taskData["total_tags"] = 0 
+    taskData["client_messages"] = [f"[{taskData.get('Batch', 'N/A')}] [{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Start tagging conversations from page_id {page_id} with tag_id {tag_id_name}."] # Initialize total_tags to track successful tags
     taskData["status"] = "Ongoing"
 
     updateTagByFields(redis_key, taskData)  # Initial update
 
-    tagged = []
-    failtagged = []
-    progress_step = 100 / total_conversations  # Progress increment per conversation
-
-    for idx, conversation in enumerate(conversations, start=1):
+    while True:
         current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        taskData["client_messages"].append(
+            f"[{taskData.get('Batch', 'N/A')}] [{current_time}] Iteration {iteration} for tagging conversations on page_id {page_id} with tag {tag_id_name}."
+        )
 
-        # Check for task abortion
-        if self.is_aborted():
-            taskData["task_done_time"] = datetime.now(manila_timezone).strftime('%Y-%m-%d %H:%M:%S')
-            taskData["status"] = "STOPPED"
+        # Construct URL for API call
+        url = (
+            f"https://pages.fm/api/v1/pages/{page_id}/conversations?"
+            f"type=NOPHONE,INBOX,CREATE_DATE:{start_epoch_time}+-+{end_epoch_time}&mode=OR&tags=[]&"
+            f"except_tags=[{tag_index}]&access_token={access_token}&from_platform=web"
+        )
+        
+        try:
+            response = requests.get(url)
+            response.raise_for_status()  # Raise exception for HTTP errors
+            data = response.json()
+            data_conversations = data.get("conversations", [])
+
+            # Filter out conversations that already have the tag
+            conversations = [
+                conversation for conversation in data_conversations
+                if tag_id not in conversation.get("tags", [])
+            ]
+
+            if not conversations:
+                if iteration == 1:
+                    taskData["status"] = "No Conversations"
+                    taskData["error"] = "No conversations found"
+                    taskData['task_done_time'] = current_time
+                    taskData["client_messages"].append(
+                        f"[{taskData.get('Batch', 'N/A')}] [{current_time}] No Conversations found for tagging."
+                    )
+                    updateTagByFields(redis_key, taskData)
+                    return {
+                        "status": "Failed",
+                        "error": "No conversations found",
+                        "client_messages": taskData["client_messages"],
+                    }
+                else:
+                    if len(taskData["tagged"]) == grand_total_conversations:  # MODIFIED
+                        taskData["status"] = "Success"
+                        taskData['task_done_time'] = current_time
+                        taskData["client_messages"].append(
+                            f"[{taskData.get('Batch', 'N/A')}] [{current_time}] No more conversations to process. Tagging completed."
+                        )
+                        taskData["progress"] = 100
+                    elif not taskData["tagged"]:
+                        taskData['task_done_time'] = current_time
+                        taskData["client_messages"].append(
+                            f"[{taskData.get('Batch', 'N/A')}] [{current_time}] No conversations were successfully tagged."
+                        )
+                        
+                updateTagByFields(redis_key, taskData)
+                break
+
+            total_conversations = len(conversations)
+            grand_total_conversations += total_conversations  # NEW: Update cumulative total
+            progress_step = 100 / grand_total_conversations  # UPDATED
+
+            for idx, conversation in enumerate(conversations, start=1):
+                current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                if self.is_aborted():
+                    taskData["task_done_time"] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    taskData["status"] = "STOPPED"
+                    taskData["client_messages"].append(
+                        f"[{taskData.get('Batch', 'N/A')}] [{current_time}] Task aborted by user."
+                    )
+                    updateTagByFields(redis_key, taskData)
+                    return {
+                        "status": "Aborted",
+                        "progress": taskData["progress"],
+                        "client_messages": taskData["client_messages"],
+                        "message": "Task aborted by user",
+                    }
+
+                from_id = conversation.get("from", {}).get("id")
+                if not from_id:
+                    failtagged.append({"conversation_id": None, "error": "Missing 'from.id'"})
+                    taskData["failtagged"].append({"conversation_id": None, "error": "Missing 'from.id'"})
+                    taskData["client_messages"].append(
+                        f"[{taskData.get('Batch', 'N/A')}] [{current_time}] Failed to Tag: Missing 'from.id'."
+                    )
+                    total_failed += 1
+                    continue
+
+                conversation_id = f"{page_id}_{from_id}"
+                toggle_tag_url = (
+                    f"https://pages.fm/api/v1/pages/{page_id}/conversations/"
+                    f"{conversation_id}/toggle_tag?access_token={access_token}"
+                )
+                payload = {
+                    "tag_id": tag_id,
+                    "value": 1,
+                    "psid": from_id,
+                    "tag[id]": tag_id,
+                }
+
+                try:
+                    tag_response = requests.post(toggle_tag_url, data=payload)
+                    tag_response.raise_for_status()
+                    tag = tag_response.json()
+
+                    if tag.get("success"):
+                        taskData["tagged"].append(conversation_id)
+                        tagged.append({"conversation_id": conversation_id, "status": "Success"})
+                        taskData["total_tags"] += 1
+                        taskData["client_messages"].append(
+                            f"[{taskData.get('Batch', 'N/A')}] [{current_time}] Successfully tagged conversation_id {conversation_id}."
+                        )
+                    else:
+                        taskData["failtagged"].append(
+                            {"conversation_id": conversation_id, "error": "Tagging failed"}
+                        )
+                        failtagged.append({"conversation_id": conversation_id, "status": "Failed"})
+                        taskData["client_messages"].append(
+                            f"[{taskData.get('Batch', 'N/A')}] [{current_time}] Failed to tag conversation_id {conversation_id}."
+                        )
+                except requests.exceptions.RequestException as e:
+                    failtagged.append({"conversation_id": conversation_id, "error": str(e)})
+                    taskData["failtagged"].append({"conversation_id": conversation_id, "error": str(e)})
+                    taskData["client_messages"].append(
+                        f"[{taskData.get('Batch', 'N/A')}] [{current_time}] Failed to tag conversation_id {conversation_id} due to error: {str(e)}."
+                    )
+                except Exception as e:
+                    failtagged.append({"conversation_id": conversation_id, "error": str(e)})
+                    taskData["failtagged"].append({"conversation_id": conversation_id, "error": str(e)})
+                    taskData["client_messages"].append(
+                        f"[{taskData.get('Batch', 'N/A')}] [{current_time}] Failed to tag conversation_id {conversation_id} due to error: {str(e)}."
+                    )
+
+                taskData["progress"] = round(
+                    min(100, (len(taskData["tagged"]) + len(taskData["failtagged"])) * progress_step), 2
+                )  # UPDATED to use cumulative progress
+                updateTagByFields(redis_key, taskData)
+
+            iteration += 1
+
+        except Exception as e:
+            taskData["status"] = "Error"
+            taskData["error"] = str(e)
             taskData["client_messages"].append(
-                f"[{taskData.get('Batch', 'N/A')}] [{current_time}] Task aborted by user."
+                f"[{taskData.get('Batch', 'N/A')}] [{current_time}] Error during tagging: {str(e)}."
             )
             updateTagByFields(redis_key, taskData)
-
-            return {
-                "status": "Aborted",
-                "tagged": tagged,
-                "failtagged": failtagged,
-                "progress": taskData["progress"],
-                "client_messages": taskData["client_messages"],
-                "message": "Task aborted by user",
-            }
-
-        from_id = conversation.get("from", {}).get("id")  # Safely access 'from.id'
-        if not from_id:
-            failtagged.append({"conversation_id": None, "error": "Missing 'from.id'"})
-            taskData["client_messages"].append(
-                f"[{taskData.get('Batch', 'N/A')}] [{current_time}] Failed to Tag: Missing 'from.id'."
-            )
-            continue
-
-        conversation_id = f"{page_id}_{from_id}"
-        toggle_tag_url = (
-            f"https://pages.fm/api/v1/pages/{page_id}/conversations/"
-            f"{conversation_id}/toggle_tag?access_token={access_token}"
-        )
-        payload = {
-            "tag_id": tag_id,
-            "value": 1,
-            "psid": from_id,
-            "tag[id]": tag_id,
-        }
-
-        try:
-            tag_response = requests.post(toggle_tag_url, data=payload)
-            tag_response.raise_for_status()  # Raise exception for HTTP errors
-            tag = tag_response.json()
-
-            if tag.get("success"):
-                taskData["tagged"].append(conversation_id)
-                tagged.append({"conversation_id": conversation_id, "status": "Success"})
-                taskData["total_tags"] += 1
-                taskData["client_messages"].append(
-                    f"[{taskData.get('Batch', 'N/A')}] [{current_time}] Successfully tagged conversation_id {conversation_id}."
-                )
-            else:
-                taskData["failtagged"].append(
-                    {"conversation_id": conversation_id, "error": "Tagging failed"}
-                )
-                failtagged.append({"conversation_id": conversation_id, "status": "Failed"})
-                taskData["client_messages"].append(
-                    f"[{taskData.get('Batch', 'N/A')}] [{current_time}] Failed to tag conversation_id {conversation_id}."
-                )
-        except requests.exceptions.RequestException as e:
-            failtagged.append({"conversation_id": conversation_id, "error": str(e)})
-            taskData["failtagged"].append({"conversation_id": conversation_id, "error": str(e)})
-            taskData["client_messages"].append(
-                f"[{taskData.get('Batch', 'N/A')}] [{current_time}] Failed to tag conversation_id {conversation_id} due to error: {str(e)}."
-            )
-        except Exception as e:
-            failtagged.append({"conversation_id": conversation_id, "error": str(e)})
-            taskData["failtagged"].append({"conversation_id": conversation_id, "error": str(e)})
-            taskData["client_messages"].append(
-                f"[{taskData.get('Batch', 'N/A')}] [{current_time}] Failed to tag conversation_id {conversation_id} due to error: {str(e)}."
-            )
-
-        # Update progress dynamically
-        taskData["progress"] = int((idx / total_conversations) * 100)
-        taskData["status"] = "Ongoing"
-        updateTagByFields(redis_key, taskData)
-
-    # Determine final status based on results
-    if len(taskData["tagged"]) == total_conversations:
-        taskData["status"] = "Success"
-        taskData['tagging_done_time'] = current_time
-        taskData["client_messages"].append(
-            f"[{taskData.get('Batch', 'N/A')}] [{datetime.now(manila_timezone).strftime('%Y-%m-%d %H:%M:%S')}] All conversations tagged successfully."
-        )
-    elif not taskData["tagged"]:
-        taskData['tagging_done_time'] = current_time
-        taskData["client_messages"].append(
-            f"[{taskData.get('Batch', 'N/A')}] [{datetime.now(manila_timezone).strftime('%Y-%m-%d %H:%M:%S')}] No conversations were successfully tagged."
-        )
-
-    # Final update with all results
-    updateTagByFields(redis_key, taskData)
+            raise e
 
     return {
         "status": taskData["status"],
-        "tagged": tagged,
-        "failtagged": failtagged,
         "progress": taskData["progress"],
-        "total_tags": taskData["total_tags"],
-        "client_messages": taskData["client_messages"],
+        "total_tags": total_tagged,
+        "total_failed": total_failed,
     }

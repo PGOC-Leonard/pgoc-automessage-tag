@@ -56,14 +56,7 @@ def handle_tagging(redis_key, tagTask):
                 "error": "Tag information not found"
             })
 
-        # Construct URL to fetch conversations
-        initial_url = f"https://pages.fm/api/v1/pages/{page_id}/conversations?type=NOPHONE,INBOX,CREATE_DATE:{start_epoch_time}+-+{end_epoch_time}&mode=OR&tags=[]&except_tags=[{tag_id}]&access_token={access_token}&from_platform=web"
-        response = requests.get(initial_url)
-        data = response.json()
-        
-        # Extract the conversations
-        conversations = data.get("conversations", [])
-        taggingtask = TagConversationsCelery.apply_async(args=[redis_key, tag_id, page_id, access_token, conversations, tagTask])
+        taggingtask = TagConversationsCelery.apply_async(args=[redis_key, tag_index, tag_id, tag_id_name, page_id, access_token, start_epoch_time, end_epoch_time , tagTask])
         time.sleep(1)
 
         # Update tagTask with task details
