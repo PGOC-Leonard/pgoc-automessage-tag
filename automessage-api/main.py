@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone 
 import os
 import json
 import logging
@@ -17,7 +17,6 @@ from config.celery_config import celery_init_app
 import mysql.connector
 
 load_dotenv()
-
 
 def create_app():
     # Create the Flask application
@@ -89,7 +88,6 @@ def create_app():
         return "This is PGOC API"
 
     # Register routes
-    
     app.route('/register', methods=['POST'])(register)
     app.route('/login', methods=['POST'])(login)
     app.route('/user', methods=['POST'])(get_user_data_by_id)

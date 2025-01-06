@@ -12,6 +12,7 @@
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
     "cdbreact": "^1.5.19",
+    "extended-eventsource": "^2.1.0",
     "file-saver": "^2.0.5",
     "jwt-decode": "^4.0.0",
     "react": "^18.3.1",

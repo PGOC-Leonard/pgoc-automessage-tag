@@ -9,6 +9,7 @@ import notify from "../components/Toast.js";
 import LinearProgress from "@mui/material/LinearProgress";
 import { fetchDataTag, saveTagData } from "../../services/AutoTagFunctions.js";
 import { format, isEqual } from "date-fns";
+import { EventSource } from 'extended-eventsource';
 
 const AutoTagPage = () => {
   const apiUrl = process.env.REACT_APP_AUTOMESSAGE_TAG_API_LINK;
@@ -124,7 +125,14 @@ const AutoTagPage = () => {
 
     const redis_key = localStorage.getItem("redis_key");
     // Create a new EventSource to listen for SSE data from the Flask server
-    const eventSource = new EventSource(`${apiUrl}/tagevents?key=${redis_key}`);
+    const eventSource = new EventSource(
+      `${apiUrl}/tagevents?key=${redis_key}`,
+      {
+        headers: {
+          "ngrok-skip-browser-warning": "true",
+        },
+        retry: 3000,
+      });
 
     // Handle incoming messages from the server
     eventSource.onmessage = (event) => {

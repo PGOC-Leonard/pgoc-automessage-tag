@@ -21,6 +21,7 @@ export const saveTagData = async (data_scheduled_tag) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(data_scheduled_tag),
@@ -52,6 +53,7 @@ export const stop_ScheduleTag = async (task_id) => {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
         Authorization: `Bearer ${token}`,
       },
     });
@@ -83,6 +85,7 @@ export const fetchDataTag = async () => {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
         Authorization: `Bearer ${token}`, // Include token in headers
       },
     });
@@ -110,6 +113,7 @@ export const updateTagData = async (editedScheduleData) => {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
+        "ngrok-skip-browser-warning": "true",
         Authorization: `Bearer ${token}`, // Include JWT token in headers
       },
       body: JSON.stringify(editedScheduleData), // Send the request body as JSON
@@ -140,7 +144,8 @@ export const fetchTagList = async (page_id, access_token) => {
       const response = await fetch(url.toString(), {  // Use the updated URL with query params
         method: "GET",
         headers: {
-          "Content-Type": "application/json", // Set the content type as JSON
+          "Content-Type": "application/json",
+          "ngrok-skip-browser-warning": "true", // Set the content type as JSON
         },
       });
   
@@ -170,6 +175,7 @@ export const fetchTagList = async (page_id, access_token) => {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
+          "ngrok-skip-browser-warning": "true",
           Authorization: `Bearer ${token}`, // Include token in headers
         },
       });

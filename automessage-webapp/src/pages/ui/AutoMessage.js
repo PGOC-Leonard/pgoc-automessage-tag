@@ -10,7 +10,8 @@ import StatusWidget from "./widgets/Automessagewidgets/StatusWidget";
 import TableTreeWidget from "./widgets/Automessagewidgets/TableTreeWidgets";
 import notify from "../components/Toast.js";
 import { saveData, fetchData } from "../../services/AutoMessageFunctions.js";
-import { format, isEqual } from "date-fns"; // To format and compare dates
+import { format, isEqual } from "date-fns";
+import { EventSource } from 'extended-eventsource'; // To format and compare dates
 
 const AutoMessagePage = () => {
   const apiUrl = process.env.REACT_APP_AUTOMESSAGE_TAG_API_LINK;
@@ -108,7 +109,7 @@ const AutoMessagePage = () => {
           if (
             item.schedule_time &&
             isEqual(new Date(item.task_done_time), new Date(currentTime)) && (item.status === "Success" || item.status === "Failed")
-            
+
           ) {
             addMessage(
               `[${currentTime}] Sending message to conversations created within past 7 days in page: ${item.page_id} with message title: ${item.message_title} - ${item.schedule_date} ${item.schedule_time}.`
@@ -156,8 +157,13 @@ const AutoMessagePage = () => {
     const redis_key = localStorage.getItem("redis_key");
     // Create a new EventSource to listen for SSE data from the Flask server
     const eventSource = new EventSource(
-      `${apiUrl}/events?key=${redis_key}`
-    );
+      `${apiUrl}/events?key=${redis_key}`,
+      {
+        headers: {
+          "ngrok-skip-browser-warning": "true",
+        },
+        retry: 3000,
+      });
 
     // Handle incoming messages from the server
     eventSource.onmessage = (event) => {
@@ -312,7 +318,7 @@ const AutoMessagePage = () => {
       }
 
       // Merge unique messages with existing table data
-      
+
       // Save to Redis
       console.log(data_scheduled_messages);
       const response = await saveData(data_scheduled_messages);
