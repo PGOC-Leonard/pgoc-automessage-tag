@@ -24,6 +24,7 @@ git config core.sshCommand "ssh -i ~<your ssh key .pub directory>"
 
 ### Pull the Project
 ```bash
+git remote add origin git@github.com:jmcanete-pgoc/web-autotag-automessage.git
 git pull origin
 ```
 ### Look for the updated branch
