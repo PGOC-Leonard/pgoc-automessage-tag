@@ -36,8 +36,17 @@ const LoginPage = () => {
       return;
     }
 
-    // Prepare login data (either username or email with password)
-    const loginData = { username: usernameOrEmail, password };
+    // Extract domain from current URL
+    const domain = window.location.hostname;
+
+
+    // Prepare login data (username/email, password, and domain)
+    const loginData = { 
+      username: usernameOrEmail, 
+      password, 
+      domain 
+    };
+
     setLoading(true); // Set loading to true before making the API request
 
     try {

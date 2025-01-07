@@ -67,8 +67,10 @@ def create_app():
                 username VARCHAR(100) NOT NULL UNIQUE,
                 email VARCHAR(100) NOT NULL UNIQUE,
                 password VARCHAR(255) NOT NULL,
-                gender ENUM('male', 'female') NOT NULL,  -- Adding gender column
-                profile_image LONGBLOB,  -- Adding profile_image column to store image data
+                gender ENUM('male', 'female') NOT NULL,  -- Gender column
+                profile_image LONGBLOB,  -- Column to store profile image data
+                user_status ENUM('activated', 'deactivated', 'banned' , 'pending') NOT NULL DEFAULT 'pending',  -- User status column
+                domain_url VARCHAR(255),  -- Domain URL column to store associated URLs
                 last_active DATETIME DEFAULT CURRENT_TIMESTAMP
             );
         """)
