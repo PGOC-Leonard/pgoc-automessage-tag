@@ -11,6 +11,7 @@ import TableTreeWidget from "./widgets/Automessagewidgets/TableTreeWidgets";
 import notify from "../components/Toast.js";
 import { saveData, fetchData } from "../../services/AutoMessageFunctions.js";
 import { format, isEqual } from "date-fns";
+import { EventSource } from 'extended-eventsource'; // To format and compare dates
 
 const AutoMessagePage = () => {
   const apiUrl = process.env.REACT_APP_AUTOMESSAGE_TAG_API_LINK;
@@ -157,7 +158,12 @@ const AutoMessagePage = () => {
     // Create a new EventSource to listen for SSE data from the Flask server
     const eventSource = new EventSource(
       `${apiUrl}/events?key=${redis_key}`,
-     );
+      {
+        headers: {
+          "ngrok-skip-browser-warning": "true",
+        },
+        retry: 3000,
+      });
 
     // Handle incoming messages from the server
     eventSource.onmessage = (event) => {

@@ -1,0 +1,11 @@
+node_modules/
+build/
+# Ignore npm debug log
+npm-debug.log*
+
+# Ignore system-specific files
+.DS_Store
+Thumbs.db
+
+# Ignore log files
+*.log
