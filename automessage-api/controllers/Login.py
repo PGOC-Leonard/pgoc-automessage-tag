@@ -35,8 +35,9 @@ def get_db_connection():
 def register():
     data = request.get_json()
 
-    if not data or not data.get('username') or not data.get('password') or not data.get('email') or not data.get('gender'):
-        return jsonify({'message': 'Username, email, password, and gender required'}), 400
+    # Validate input fields
+    if not data or not data.get('username') or not data.get('password') or not data.get('email') or not data.get('gender') or not data.get('domain'):
+        return jsonify({'message': 'Username, email, password, gender, and domain are required'}), 400
 
     # Gender validation (either male or female)
     gender = data['gender'].lower()
@@ -44,11 +45,7 @@ def register():
         return jsonify({'message': 'Gender must be either male or female'}), 400
 
     # Determine the image path based on gender
-    image_path = None
-    if gender == 'male':
-        image_path = 'assets/male.png'
-    elif gender == 'female':
-        image_path = 'assets/female.png'
+    image_path = 'assets/male.png' if gender == 'male' else 'assets/female.png'
 
     connection = get_db_connection()
     cursor = connection.cursor(dictionary=True)
@@ -56,14 +53,12 @@ def register():
     try:
         # Check if the username already exists
         cursor.execute("SELECT * FROM users WHERE username = %s", (data['username'],))
-        existing_user_by_username = cursor.fetchone()
-        if existing_user_by_username:
+        if cursor.fetchone():
             return jsonify({'message': 'Username already exists'}), 400
 
         # Check if the email already exists
         cursor.execute("SELECT * FROM users WHERE email = %s", (data['email'],))
-        existing_user_by_email = cursor.fetchone()
-        if existing_user_by_email:
+        if cursor.fetchone():
             return jsonify({'message': 'Email already exists'}), 400
 
         # Hash the password before storing
@@ -76,10 +71,13 @@ def register():
         with open(image_path, 'rb') as image_file:
             image_data = image_file.read()
 
-        # Create and store the new user with the image data
+        # Insert the new user into the database with `user_status` set to 'pending' and save the domain
         cursor.execute(
-            "INSERT INTO users (id, username, email, password, gender, profile_image) VALUES (%s, %s, %s, %s, %s, %s)",
-            (userid, data['username'], data['email'], hashed_password, gender, image_data)
+            """
+            INSERT INTO users (id, username, email, password, gender, profile_image, user_status, domain_url)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """,
+            (userid, data['username'], data['email'], hashed_password, gender, image_data, 'pending', data['domain'])
         )
         connection.commit()
 
@@ -90,14 +88,14 @@ def register():
         connection.close()
 
 
-
 def login():
     data = request.get_json()
 
-    if not data or (not data.get('username') and not data.get('email')) or not data.get('password'):
-        return jsonify({'message': 'Username/email and password required'}), 400
+    if not data or (not data.get('username') and not data.get('email')) or not data.get('password') or not data.get('domain'):
+        return jsonify({'message': 'Username/email, password, and domain are required'}), 400
 
     username_or_email = data.get('username') or data.get('email')
+    domain = data.get('domain')
 
     def is_email(value):
         email_regex = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
@@ -115,54 +113,74 @@ def login():
 
         user = cursor.fetchone()
 
-        if user and bcrypt.check_password_hash(user['password'], data['password']):
-            # Generate JWT token
-            access_token = create_access_token(
-                identity=str(user['id']),  # Ensure identity is a string
-                expires_delta=timedelta(days=2)
+        if not user:
+            return jsonify({'message': 'Invalid username/email'}), 401
+        
+        # Validate password
+        if not bcrypt.check_password_hash(user['password'], data['password']):
+            return jsonify({'message': 'Password does not match'}), 401
+
+        # Check domain
+        if user['domain_url'] != domain:
+            return jsonify({'message': 'Your account cannot be found in this domain. Please log in to your dedicated domain.'}), 403
+
+        # Check user status
+        user_status = user['user_status']
+        if user_status == 'pending':
+            return jsonify({'message': 'Your account is still waiting for activation.'}), 403
+        elif user_status == 'deactivated':
+            return jsonify({'message': 'Your account is deactivated. Proceed with payment to continue using the service.'}), 403
+        elif user_status == 'banned':
+            return jsonify({'message': 'Your account is banned.'}), 403
+
+        
+
+        # Generate JWT token
+        access_token = create_access_token(
+            identity=str(user['id']),  # Ensure identity is a string
+            expires_delta=timedelta(days=2)
+        )
+
+        redis_key = f"{user['id']}-access-key"
+
+        keys = redis_client.keys(f"*{redis_key}*")
+        if keys:
+            print(f"Redis key(s) found for user ID '{user['id']}'")
+        else:
+            print(f"No Redis key(s) found for user ID '{user['id']}'")
+
+        existing_redis_key = keys
+        if existing_redis_key:
+            return jsonify({
+                'message': 'Login successful',
+                'user_id': user['id'],  # Return user ID
+                'access_token': access_token,
+                'redis_key': redis_key
+            }), 200
+        else:
+            redis_value = user['username']
+            redis_client.setex(redis_key, timedelta(days=7), redis_value)
+            tag_redis.setex(redis_key, timedelta(days=7), redis_value)
+
+            # Update the user's last_active timestamp
+            cursor.execute(
+                "UPDATE users SET last_active = %s WHERE id = %s",
+                (datetime.utcnow(), user['id'])
             )
+            connection.commit()
 
-            redis_key = f"{user['id']}-access-key"
-
-            keys = redis_client.keys(f"*{redis_key}*")
-            if keys:
-                print(f"Redis key(s) found for user ID '{user['id']}'")
-            else:
-                print(f"No Redis key(s) found for user ID '{user['id']}'")
-
-            existing_redis_key = keys
-            if existing_redis_key:
-                return jsonify({
-                    'message': 'Login successful',
-                    'user_id': user['id'],  # Return user ID
-                    'access_token': access_token,
-                    'redis_key': redis_key
-                }), 200
-            else:
-                redis_value = user['username']
-                redis_client.setex(redis_key, timedelta(days=7), redis_value)
-                tag_redis.setex(redis_key, timedelta(days=7), redis_value)
-
-                # Update the user's last_active timestamp
-                cursor.execute(
-                    "UPDATE users SET last_active = %s WHERE id = %s",
-                    (datetime.utcnow(), user['id'])
-                )
-                connection.commit()
-
-                return jsonify({
-                    'message': 'Login successful',
-                    'user_id': user['id'],  # Return user ID
-                    'access_token': access_token,
-                    'redis_key': redis_key
-                }), 200
-
-        return jsonify({'message': 'Invalid username/email or password'}), 401
+            return jsonify({
+                'message': 'Login successful',
+                'user_id': user['id'],  # Return user ID
+                'access_token': access_token,
+                'redis_key': redis_key
+            }), 200
 
     finally:
         cursor.close()
         connection.close()
-              
+
+            
 def get_user_data_by_id():
     data = request.get_json()
 

@@ -31,6 +31,7 @@ const SignupPage = ({ onSwitchToLogin }) => {
   };
 
   const handleSignUp = async (e) => {
+    const domain = window.location.hostname;
     e.preventDefault();
 
     // Validate required fields
@@ -55,7 +56,7 @@ const SignupPage = ({ onSwitchToLogin }) => {
     }
 
     // Prepare the sign-up data
-    const signUpData = { username, email, password, gender };
+    const signUpData = { username, email, password, gender,domain };
     setLoading(true); // Set loading to true before making the API request
 
     try {
