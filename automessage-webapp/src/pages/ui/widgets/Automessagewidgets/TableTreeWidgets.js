@@ -1,16 +1,25 @@
 import React, { useState, useEffect } from "react";
 import EditDialogAutoMessage from "./EditDialogAutoMessage";
-import { editData, stop_Schedule } from "../../../../services/AutoMessageFunctions";
+import {
+  editData,
+  stop_Schedule,
+} from "../../../../services/AutoMessageFunctions";
 import notify from "../../../components/Toast";
+import LinearProgress from "@mui/material/LinearProgress";
 
-function TableTreeWidget({ tableData, setTableData, fetchInitialData , addmessage}) {
+function TableTreeWidget({
+  tableData,
+  setTableData,
+  fetchInitialData,
+  addmessage,
+}) {
   const [selectedIndex, setSelectedIndex] = useState(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const handleSelectIndex = (index) => {
     setSelectedIndex(index);
     // Log the selected row data when an index is selected
-    console.log(index)
+    console.log(index);
     console.log("Selected row data:", tableData[index]);
   };
 
@@ -18,30 +27,32 @@ function TableTreeWidget({ tableData, setTableData, fetchInitialData , addmessag
     // Reset selectedIndex whenever tableData is updated
     setSelectedIndex(null);
   }, [fetchInitialData]);
-  
-  
 
   const stopSchedule = async () => {
     if (selectedIndex !== null) {
       const selectedData = tableData[selectedIndex];
       const taskId = selectedData?.task_id; // Access task_id from selected row data
       const status = selectedData?.status; // Access status from selected row data
-  
+
       if (status === "Scheduled") {
         try {
           // Call the API to stop the schedule
           const response = await stop_Schedule(taskId);
           // console.log(response);
-  
-          if (response.status === "SUCCESS" || response.result === "Task stopped" || response.status === "ABORTED" ) {
+
+          if (
+            response.status === "SUCCESS" ||
+            response.result === "Task stopped" ||
+            response.status === "ABORTED"
+          ) {
             // await fetchInitialData();
             notify(`Schedule stopped successfully`, "success");
-            addmessage(`Schedule stopped successfully ${taskId}.`)
-             // Refresh table data
+            addmessage(`Schedule stopped successfully ${taskId}.`);
+            // Refresh table data
           } else if (response.error) {
             notify(`Failed to stop schedule: ${response.error}`, "error");
-            addmessage(`Failed to stop schedule: ${response.error}`)
-          } 
+            addmessage(`Failed to stop schedule: ${response.error}`);
+          }
         } catch (error) {
           notify(`An error occurred: ${error.message}`, "error");
           addmessage(`Error stopping schedule: ${error}`);
@@ -53,8 +64,6 @@ function TableTreeWidget({ tableData, setTableData, fetchInitialData , addmessag
       notify("No message selected. Please select a message to stop.", "info");
     }
   };
-  
-  
 
   const handleEdit = () => {
     if (selectedIndex !== null) {
@@ -74,7 +83,7 @@ function TableTreeWidget({ tableData, setTableData, fetchInitialData , addmessag
   const handleDialogSave = async (updatedData) => {
     try {
       // Destructure the updatedData to get the index and the edited_schedule_data
-      const edited_schedule_data  = updatedData;
+      const edited_schedule_data = updatedData;
       // Ensure we are updating the correct index
       const response = await editData(edited_schedule_data);
 
@@ -89,7 +98,7 @@ function TableTreeWidget({ tableData, setTableData, fetchInitialData , addmessag
   };
 
   return (
-    <div className="w-[780px] h-[400px] mt-2 font-montserrat text-[12px] " >
+    <div className="w-[780px] h-[400px] mt-2 font-montserrat text-[12px] ">
       {/* Action Buttons */}
       <div className="flex justify-start space-x-2 mb-2">
         <button
@@ -124,38 +133,88 @@ function TableTreeWidget({ tableData, setTableData, fetchInitialData , addmessag
               <th className="px-4 py-2 text-center">Status</th>
               <th className="px-4 py-2 text-center">Success</th>
               <th className="px-4 py-2 text-center">Failed</th>
-              <th className="px-4 py-2 text-center">Total Response</th>
+              <th className="px-4 py-2 text-center">Total Conversations</th>
+              <th className="px-4 py-2 text-center">Progress</th>
             </tr>
           </thead>
           <tbody>
             {/* Render rows with their original order */}
-            {Object.values(tableData).map((row, index) => (
-              <tr
-                key={index}
-                className={`border-t ${selectedIndex === index ? "bg-blue-100" : ""}`}
-                onClick={() => handleSelectIndex(index)}
-              >
-                <td className="px-4 py-2 text-center overflow-hidden whitespace-nowrap text-ellipsis max-w-[100px]" title={row.page_id}>
-                  {row.page_id}
-                </td>
-                <td className="px-4 py-2 text-center overflow-hidden whitespace-nowrap text-ellipsis max-w-[200px]" title={row.access_token}>
-                  {row.access_token}
-                </td>
+            {Object.values(tableData).map((row, index) => {
+              const progress = row.progress ? row.progress : 0;
 
-                <td className="px-4 py-2 text-center">{row.max_workers}</td>
-                <td className="px-4 py-2 text-center">{row.message_title}</td>
-                <td className="px-4 py-2 text-center">{row.start_date}</td>
-                <td className="px-4 py-2 text-center">{row.end_date}</td>
-                <td className="px-4 py-2 text-center">{row.start_time}</td>
-                <td className="px-4 py-2 text-center">{row.end_time}</td>
-                <td className="px-4 py-2 text-center">{row.schedule_date}</td>
-                <td className="px-4 py-2 text-center">{row.schedule_time}</td>
-                <td className="px-4 py-2 text-center">{row.status}</td>
-                <td className="px-4 py-2 text-center">{row.success}</td>
-                <td className="px-4 py-2 text-center">{row.failed}</td>
-                <td className="px-4 py-2 text-center">{row.totalResponse}</td>
-              </tr>
-            ))}
+              // Define progress color and text based on the status
+              let progressColor = "#46923c"; // default color
+              switch (row.status) {
+                case "Failed":
+                case "STOPPED":
+                  progressColor = "red";
+                  break;
+                case "Success":
+                  progressColor = "#279100";
+                  break;
+                case "Sending...":
+                  progressColor = "#f08d4f";
+                  break;
+                case "No Conversations":
+                  progressColor = "#080404";
+                  break;
+                default:
+                  progressColor = "#46923c";
+                  break;
+              }
+
+              return (
+                <tr
+                  key={index}
+                  className={`border-t ${
+                    selectedIndex === index ? "bg-blue-100" : ""
+                  }`}
+                  onClick={() => handleSelectIndex(index)}
+                >
+                  <td
+                    className="px-4 py-2 text-center overflow-hidden whitespace-nowrap text-ellipsis max-w-[100px]"
+                    title={row.page_id}
+                  >
+                    {row.page_id}
+                  </td>
+                  <td
+                    className="px-4 py-2 text-center overflow-hidden whitespace-nowrap text-ellipsis max-w-[200px]"
+                    title={row.access_token}
+                  >
+                    {row.access_token}
+                  </td>
+
+                  <td className="px-4 py-2 text-center">{row.max_workers}</td>
+                  <td className="px-4 py-2 text-center">{row.message_title}</td>
+                  <td className="px-4 py-2 text-center">{row.start_date}</td>
+                  <td className="px-4 py-2 text-center">{row.end_date}</td>
+                  <td className="px-4 py-2 text-center">{row.start_time}</td>
+                  <td className="px-4 py-2 text-center">{row.end_time}</td>
+                  <td className="px-4 py-2 text-center">{row.schedule_date}</td>
+                  <td className="px-4 py-2 text-center">{row.schedule_time}</td>
+                  <td className="px-4 py-2 text-center">{row.status}</td>
+                  <td className="px-4 py-2 text-center">{row.success}</td>
+                  <td className="px-4 py-2 text-center">{row.failed}</td>
+                  <td className="px-4 py-2 text-center">
+                    {row.total_conversations}
+                  </td>
+                  <td className="px-4 py-2 text-center ">
+                    <LinearProgress
+                      variant="determinate"
+                      value={progress} // Use the default value of 0 if progress is invalid
+                      color="primary"
+                      size={15}
+                      sx={{
+                        "& .MuiLinearProgress-bar": {
+                          backgroundColor: progressColor,
+                        },
+                        backgroundColor: "#e0e0e0",
+                      }}
+                    />
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
