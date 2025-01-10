@@ -66,26 +66,8 @@ def schedule_message():
             if message.get('run_immediately') == True:
                 for message in data_scheduled_messages:
                 # Call handlesendingmessage for immediate execution
-                    result = handlesendingmessage(message)
+                    result = handlesendingmessage(redis_key,message)
 
-                # Update status based on the result
-                    if result.get("status") == "success":
-                        conversation_ids = result.get("total_conversations")
-                        successCounts = result.get("successes")
-                        message['successCounts'] = successCounts
-                        message['conversation_ids'] = conversation_ids
-                        message['status'] = "Success"
-                    else:
-                        message['status'] = "Failed"
-                        if 'failure' in message:
-                            message['failure'] += 1  # Increment failure count
-                        else:
-                            message['failure'] = 1  # Initialize failure count if not present  # Increment failure count
-
-                # Update the message in Redis
-                message['task_done_time'] = datetime.now(manila_timezone).strftime('%Y-%m-%d %H:%M:%S')
-                updateScheduleMessageByFields(redis_key, message)
-                
                 
                 return result , 201
 
@@ -94,8 +76,6 @@ def schedule_message():
                 has_scheduled_message = True
                 update_data['status'] = 'Scheduled'
                 updateScheduleMessageByFields(redis_key, update_data)
-
-
 
         # Step 3: Run the scheduler if there are scheduled messages
         if has_scheduled_message:

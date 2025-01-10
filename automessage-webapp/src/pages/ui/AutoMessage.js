@@ -35,13 +35,13 @@ const AutoMessagePage = () => {
     if (newMessage.trim() !== "") {
       setMessages((prevMessages) => {
         // Normalize the message by removing content inside square brackets
-        const normalize = (message) => message.replace(/\[.*?\]/g, "");
 
-        const normalizedNewMessage = normalize(newMessage);
+
+        const normalizedNewMessage = newMessage;
 
         // Check if the normalized message already exists
         const isDuplicate = prevMessages.some(
-          (msg) => normalize(msg) === normalizedNewMessage
+          (msg) => msg === normalizedNewMessage
         );
 
         if (!isDuplicate) {
@@ -90,51 +90,33 @@ const AutoMessagePage = () => {
         const currentTime = format(new Date(), "yyyy-MM-dd HH:mm:ss");
 
         Data.forEach((item) => {
-          totalConversations += item.conversation_ids || 0;
-          totalSuccess += item.successCounts || 0;
-          totalFailures += item.failure || 0;
-
-
-          // Calculate the time difference between current time and scheduled time
-          const timeDifference =
-            new Date(currentTime) - new Date(item.task_done_time);
-
-          if (item.task_id && item.status === "Scheduled") {
-            addMessage(
-              `[${currentTime}] Successfully created scheduled message with task id ${item.task_id}`
-            );
-          }
-
-          // If the current time is exactly equal to scheduled time
-          if (
-            item.schedule_time &&
-            isEqual(new Date(item.task_done_time), new Date(currentTime)) && (item.status === "Success" || item.status === "Failed")
-
-          ) {
-            addMessage(
-              `[${currentTime}] Sending message to conversations created within past 7 days in page: ${item.page_id} with message title: ${item.message_title} - ${item.schedule_date} ${item.schedule_time}.`
-            );
-          }
-
-          // Only add messages if the scheduled time is within the last minute
-          if (timeDifference <= 60000 && timeDifference >= 0) {
-            // 60000 ms = 1 minute
-            if (item.status === "Success") {
-              addMessage(
-                `[${currentTime}] Message successfully sent in page ID: ${item.page_id} with message title: ${item.message_title} - ${item.schedule_date} ${item.schedule_time}`
-              );
-            } else if (item.status === "Failed") {
-              addMessage(
-                `[${currentTime}] Sending message failed/error in page ID: ${item.page_id} with message title: ${item.message_title} - ${item.schedule_date} ${item.schedule_time}.`
-              );
-            }
-          } else {
-            console.log(
-              `Skipping message for Task Id: ${item.task_id} because the scheduled time is more than 1 minute ago.`
-            );
-          }
+          totalConversations += item.total_conversations || 0;
+          totalSuccess += item.success || 0;
+          totalFailures += item.failed || 0;
         });
 
+        // Process each item in the data array
+        Data.forEach((dataItem) => {
+          if (dataItem.client_messages) {
+            if (dataItem.task_done_time) {
+              const taskDoneTime = new Date(dataItem.task_done_time);
+              const timeDifference = (currentTime - taskDoneTime) / 1000; // Time difference in seconds
+
+              // Add messages only if time difference is <= 60 seconds
+              if (timeDifference <= 80) {
+                dataItem.client_messages.forEach((message) => {
+                  addMessage(`${message}`);
+                });
+              }
+            } else {
+              // If `tagging_done_time` is not present, always add messages
+              dataItem.client_messages.forEach((message) => {
+                addMessage(`${message}`);
+              });
+            }
+          }
+        });
+      
         setStatusData({
           numberOfConversations: totalConversations,
           successfulResponses: totalSuccess,

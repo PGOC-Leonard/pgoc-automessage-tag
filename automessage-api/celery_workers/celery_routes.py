@@ -35,15 +35,27 @@ def test_tag():
 
     
 @celery_blueprint.route('/test-sendingmessage', methods=['POST'])
+@jwt_required()
 def test_handlesendingmessage():
+    user_id = get_jwt_identity()
     try:
+        # Get redis_key from the request
+        redis_key = f"{user_id}-access-key"
         # Get message data from the request body
+        if not redis_key:
+            return jsonify({'message': 'Redis key is required'}), 400
+
+        # Validate Redis key belongs to the user
+        expected_redis_key = redis_key
+        
+        if redis_key != expected_redis_key:
+            return jsonify({'message': 'Unauthorized: Redis key does not match'}), 401
         message_data = request.get_json()
         if not message_data:
             return jsonify({"error": "No message data provided"}), 400
 
         # Call the main function and get the result
-        result = handlesendingmessage(message_data)
+        result = handlesendingmessage(redis_key,message_data)
 
         # Return the result as JSON
         return result, 200

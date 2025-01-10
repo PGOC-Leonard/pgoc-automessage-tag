@@ -3,7 +3,7 @@ import "../../../../index.css";
 import "../../buttons/radio-buttons.css"; // Path to your custom radio buttons CSS
 
 const RadioWidget = ({ setMethodData, onMethodChange }) => {
-  const [runImmediately, setRunImmediately] = useState(false); // Default: "No" => false
+  const [runImmediately, setRunImmediately] = useState(true); // Default: "No" => false
   const [messageMethod, setMessageMethod] = useState(1); // Default: "Quick" => 1
 
   // Update parent state whenever local state changes
