@@ -51,62 +51,60 @@ const AutoTagPage = () => {
       if (response && response.data) {
         const Data = response.data; // Extract data from the response
   
-        // Find the latest entry based on the index
-        const latestIndexData = Data.sort((a, b) => b.index - a.index)[0]; 
+        // Filter out items with the status "No Conversations" from the data
+        const filteredData = Data.filter(item => 
+          item.status?.toLowerCase() !== "no conversations"
+        );
   
-        if (latestIndexData) {
-          const progressValue =
-            latestIndexData.progress != null ? latestIndexData.progress : 0;
-          setProgress(progressValue);
+        // Calculate total progress considering special cases for specific statuses
+        const maxProgress = filteredData.length * 100; // Each item's max progress is 100
+        const totalProgress = filteredData.reduce((sum, item) => {
+          const status = item.status?.toLowerCase();
+          const isFinalStatus = status === "failed" || status === "stopped" ;
   
-          switch (latestIndexData.status) {
-            case "Failed":
-            case "STOPPED":
-              setProgressColor("red");
-              setProgressText(latestIndexData.status);
-              break;
-            case "Success":
-              setProgressColor("#279100");
-              setProgressText("Success");
-              break;
-            case "Ongoing":
-              setProgressColor("#f08d4f");
-              setProgressText("In Progress");
-              break;
-            case "No Conversations":
-              setProgressColor("#080404");
-              setProgressText("No Conversations");
-              break;
-            default:
-              setProgressColor("#46923c");
-              setProgressText("");
-              break;
-          }
+          // Treat progress as 100 for final statuses, otherwise use the item's actual progress
+          return sum + (isFinalStatus ? 100 : (item.progress || 0));
+        }, 0);
   
-          const currentTime = new Date(); // Get the current time
+        // Calculate the overall progress percentage
+        const overallProgress = maxProgress > 0 ? (totalProgress / maxProgress) * 100 : 0;
   
-          // Process each item in the data array
-          Data.forEach((dataItem) => {
-            if (dataItem.client_messages) {
-              if (dataItem.tagging_done_time) {
-                const taggingDoneTime = new Date(dataItem.tagging_done_time);
-                const timeDifference = (currentTime - taggingDoneTime) / 1000; // Time difference in seconds
+        setProgress(overallProgress); // Update the main progress bar
   
-                // Add messages only if time difference is <= 60 seconds
-                if (timeDifference <= 30) {
-                  dataItem.client_messages.forEach((message) => {
-                    addMessage(`${message}`);
-                  });
-                }
-              } else {
-                // If `tagging_done_time` is not present, always add messages
+        // Update progress color and text based on the overall progress status
+        if (overallProgress === 100) {
+          setProgressColor("#279100");
+          setProgressText("All Task Complete");
+        } else if (overallProgress > 0) {
+          setProgressColor("#f08d4f");
+          setProgressText("In Progress");
+        } else {
+          setProgressColor("#46923c");
+          setProgressText("No Progress");
+        }
+  
+        // Process each item in the data array
+        Data.forEach((dataItem) => {
+          if (dataItem.client_messages) {
+            const currentTime = new Date();
+            if (dataItem.tagging_done_time) {
+              const taggingDoneTime = new Date(dataItem.tagging_done_time);
+              const timeDifference = (currentTime - taggingDoneTime) / 1000; // Time difference in seconds
+  
+              // Add messages only if time difference is <= 30 seconds
+              if (timeDifference <= 30) {
                 dataItem.client_messages.forEach((message) => {
                   addMessage(`${message}`);
                 });
               }
+            } else {
+              // If `tagging_done_time` is not present, always add messages
+              dataItem.client_messages.forEach((message) => {
+                addMessage(`${message}`);
+              });
             }
-          });
-        }
+          }
+        });
   
         setTagTableData(Data); // Update state with the fetched data
         console.log("Table data successfully loaded!", "success");
@@ -279,7 +277,7 @@ const AutoTagPage = () => {
 
       if (isDuplicate) {
         notify(
-          "Duplicate Message: This scheduled message already exists.",
+          "Duplicate Message: This Tagging Task already exists.",
           "error"
         );
         return; // Stop processing to prevent saving duplicates
@@ -291,7 +289,7 @@ const AutoTagPage = () => {
 
       if (response && response.status === 201) {
         fetchInitialData();
-        notify("Scheduled Message Created", "success");
+        notify("Tagging Task Added", "success");
       }
     } catch (error) {
       console.error("Error saving table data:", error);
