@@ -27,7 +27,7 @@ services:
       TZ: Asia/Manila
     depends_on:
       - redis
-      - mysql
+      # - mysql
     healthcheck:
       test: ["CMD", "mysql", "-h", "mysql", "-u", "PGOCADMIN", "-p@_PGOCEncrypted54.", "-e", "SELECT 1;"]
       retries: 5
@@ -52,7 +52,7 @@ services:
       MYSQL_PORT: 3308
     depends_on:
       - redis
-      - mysql
+      # - mysql
 
   # mysql:
   #   image: mysql:8.0
