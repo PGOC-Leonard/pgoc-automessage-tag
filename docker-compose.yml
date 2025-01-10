@@ -18,11 +18,11 @@ services:
       - ./automessage-api:/app
     environment:
       FLASK_ENV: development
-      MYSQL_HOST: 192.168.0.19
+      MYSQL_HOST: mysql
       MYSQL_USER: PGOCADMIN
       MYSQL_PASSWORD: "@_PGOCEncrypted54."
       MYSQL_DB: automessage_tag_db
-      MYSQL_PORT: 3308
+      MYSQL_PORT: 3306
       REDIS_URL: redis://redis:6379/0
       TZ: Asia/Manila
     depends_on:
@@ -45,11 +45,11 @@ services:
       - ./automessage-api:/app
     environment:
       TZ: Asia/Manila
-      MYSQL_HOST: 192.168.0.19
+      MYSQL_HOST: mysql
       MYSQL_USER: PGOCADMIN
       MYSQL_PASSWORD: "@_PGOCEncrypted54."
       MYSQL_DB: automessage_tag_db
-      MYSQL_PORT: 3308
+      MYSQL_PORT: 3306
     depends_on:
       - redis
       # - mysql
