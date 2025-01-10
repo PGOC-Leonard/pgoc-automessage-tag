@@ -429,6 +429,7 @@ def process_conversations_and_send_messages(self, redis_key, message_data):
     message_data["client_messages"].append(
                         f"[{current_time}] Getting Conversation Ids"
                     )
+    message_data["status"] = "In Progress"
     updateScheduleMessageByFields(redis_key, message_data)
     print("Getting conversation IDs and sending messages")
     try:
@@ -528,7 +529,6 @@ def send_message_to_conversations(redis_key, conversation_ids, message_data):
         message_data["client_messages"].append(
             f"[{current_time}] Sending Message to conversation Ids"
         )
-
         # Initialize total counts for success, failure, and total conversations
         total_conversations = len(conversation_ids)
         message_data["total_conversations"] = total_conversations
@@ -556,8 +556,42 @@ def send_message_to_conversations(redis_key, conversation_ids, message_data):
         successes = 0
         failures = 0
 
+        # Reply helpers
+        reply_helper_message = None
+        if method_message == 1:
+            reply_helper_url = f"https://pages.fm/api/v1/pages/{page_id}/settings?access_token={access_token}"
+            try:
+                helper_response = requests.get(reply_helper_url)
+                helper_response.raise_for_status()
+                reply_helper_data = helper_response.json()
+
+                quick_replies = reply_helper_data['settings']['quick_replies']
+                for quick_reply in quick_replies:
+                    shortcut = quick_reply['shortcut']
+                    messages = quick_reply['messages']
+
+                    if str(shortcut) == str(message).strip():
+                        reply_helper_message = messages
+                        break
+
+                if not reply_helper_message:
+                    print(f"[DEBUG] No reply helper found for {message_title}. Scheduled message for {schedule_time}.")
+                    message_data["client_messages"].append(
+                    f"[{current_time}] No Quick Message found for {message_title}."
+                    )
+                    message_data["status"] = "Failed"
+                    updateScheduleMessageByFields(redis_key, message_data)
+            except requests.exceptions.RequestException as e:
+                message_data["client_messages"].append(
+                f"[{current_time}] Error in processing the reply helper: {str(e)}."
+                )
+                message_data["status"] = "Failed"
+                updateScheduleMessageByFields(redis_key, message_data)
+                print(f"[DEBUG] HTTP Request Error: {e}")
+                return {"status": "error", "message": f"Error in processing the reply helper: {str(e)}"}
+
         # Send the message to each conversation
-        for index, conv_id in enumerate(conversation_ids, start=1):
+        for conv_id in conversation_ids:
             if conv_id in processed_ids or conv_id in failed_ids:
                 print(f"[DEBUG] Skipping already processed or failed conv_id: {conv_id}")
                 continue
@@ -565,23 +599,39 @@ def send_message_to_conversations(redis_key, conversation_ids, message_data):
             print(f"[DEBUG] Processing conv_id: {conv_id}")
             url = f"https://pages.fm/api/v1/pages/{page_id}/conversations/{conv_id}/messages?access_token={access_token}"
             try:
-                payload = {'action': 'reply_inbox', 'message': message}
-                response = requests.post(url, data=payload)
-                print(f"[DEBUG] Response for conv_id {conv_id}: {response.status_code}, {response.text}")
-                successes, failures = process_response(
-                    redis_key, response, conv_id, [], successes, failures, failed_ids, processed_ids
-                )
+                if method_message == 1 and reply_helper_message:
+                    print(f"[DEBUG] Sending quick message to conversation ID {conv_id}")
+                    
+                    for message_helper in reply_helper_message:
+                        payload_message = message_helper["message"]
 
-                # Calculate progress and log it
+                        # Extract photo data
+                        photo_url = message_helper['photos'][0]['url'] if message_helper.get('photos') else None
+
+                        payload = {
+                            'action': 'reply_inbox',
+                            'message': payload_message,
+                            'content_url': photo_url,
+                        }
+
+                        response = requests.post(url, data=payload)
+                        print(f"[DEBUG] Response for conv_id {conv_id}: {response.status_code}, {response.text}")
+                        successes, failures = process_response(
+                            redis_key, response, conv_id, [], successes, failures, failed_ids, processed_ids)
+                else:
+                    print(f"[DEBUG] Sending normal message to conversation ID {conv_id}")
+                    payload = {'action': 'reply_inbox', 'message': message}
+                    response = requests.post(url, data=payload)
+                    print(f"[DEBUG] Response for conv_id {conv_id}: {response.status_code}, {response.text}")
+                    successes, failures = process_response(
+                        redis_key, response, conv_id, [], successes, failures, failed_ids, processed_ids)
+
+                # After each processed conversation ID, update the success/failure counts and save progress
                 progress = ((successes + failures) / total_conversations) * 100
                 message_data["progress"] = round(progress, 2)
                 message_data["success"] = successes
                 message_data["failed"] = failures
-                updateScheduleMessageByFields(redis_key, message_data)
-
-                print(
-                    f"[DEBUG] Progress: {progress:.2f}% ({successes} successes, {failures} failures, {total_conversations} total)"
-                )
+                updateScheduleMessageByFields(redis_key, message_data)  # Save progress during the loop
 
             except requests.exceptions.RequestException as e:
                 if conv_id not in failed_ids:
@@ -593,27 +643,40 @@ def send_message_to_conversations(redis_key, conversation_ids, message_data):
         message_data["client_messages"].append(
             f"[{current_time}] All Conversation Ids Done"
         )
-        message_data["status"] = "Success" if successes > 0 else "Failed"
+        message_data["success"] = successes
+        message_data["failed"] = failures
+        message_data["status"] = "Success"
         updateScheduleMessageByFields(redis_key, message_data)
+        time.sleep(1)
+        message_data['task_done_time'] = datetime.now(manila_timezone).strftime('%Y-%m-%d %H:%M:%S')
+        updateScheduleMessageByFields(redis_key, message_data)
+
+        # If no successes or failures, return a message indicating the issue
+        if successes == 0 and failures == len(conversation_ids):
+            message_data["status"] = "Failed"
+            message_data["client_messages"].append(
+            f"[{current_time}]  Failed to send messages to all conversation IDs."
+            )
+            updateScheduleMessageByFields(redis_key, message_data)
+            return {"status": "error", "message": "Failed to send messages to all conversation IDs."}
 
         return {
             "status": "Task Done",
-            "progress": 100.0,
             "total_conversations": total_conversations,
+            "progress": 100.0,
             "successes": successes,
             "failures": failures,
-            "message": "Message sending completed with the above results.",
+            "message": "Message sending completed with the above results."
         }
 
     except Exception as e:
         print(f"[DEBUG] Error in sending message: {str(e)}")
         message_data["status"] = "Failed"
         message_data["client_messages"].append(
-            f"[{current_time}] Error in sending message: {str(e)}"
+        f"[{current_time}] Error in sending message: {str(e)}"
         )
         updateScheduleMessageByFields(redis_key, message_data)
         return {"status": "error", "message": f"Error in sending message: {str(e)}"}
-
 
 
 def process_response(redis_key, response, conv_id, responses, successes, failures, failed_ids, processed_ids):
