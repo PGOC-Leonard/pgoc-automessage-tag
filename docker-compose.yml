@@ -6,6 +6,7 @@ services:
       - "6390:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+    restart: always
 
   flask-api:
     container_name: automessage-api
@@ -34,6 +35,7 @@ services:
       interval: 10s
       start_period: 10s
       timeout: 10s
+    restart: always
 
   celery:
     container_name: celery
@@ -53,6 +55,7 @@ services:
     depends_on:
       - redis
       - mysql
+    restart: always
 
   mysql:
     image: mysql:8.0
@@ -72,6 +75,7 @@ services:
       interval: 10s
       start_period: 10s
       timeout: 10s
+    restart: always
 
   # react-webapp:
   #   container_name: react-webapp
