@@ -3,11 +3,13 @@ import { useParams, useNavigate } from "react-router-dom";
 import notify from "../components/Toast";
 import Logo from "../../assets/PGOC_TOP_LEFT_ICON.png";
 import { CircularProgress } from "@mui/material";
+import { FaEye, FaEyeSlash } from "react-icons/fa";
 
 const ResetPassword = () => {
   const { token } = useParams(); // Get token from URL
   const [isTokenValid, setIsTokenValid] = useState(null);
   const [newPassword, setNewPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false); // State to toggle password visibility
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const navigate = useNavigate();
@@ -101,15 +103,21 @@ const ResetPassword = () => {
         </div>
         {isTokenValid && (
           <form onSubmit={handleSubmit}>
-            <div className="mb-4 w-full">
+            <div className="mb-4 w-full relative">
               <input
-                type="password"
+                type={showPassword ? "text" : "password"} // Toggle input type
                 placeholder="Enter your new password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                 required
               />
+              <span
+                onClick={() => setShowPassword(!showPassword)} // Toggle password visibility
+                className="absolute right-3 top-4 cursor-pointer text-gray-600 hover:text-gray-800"
+              >
+                {showPassword ? <FaEyeSlash size={20} /> : <FaEye size={20} />}
+              </span>
             </div>
             <button
               type="submit"
@@ -122,10 +130,7 @@ const ResetPassword = () => {
         )}
         <div className="text-center mt-4">
           <p>
-            <a
-              href="/"
-              className="text-blue-600 hover:underline"
-            >
+            <a href="/" className="text-blue-600 hover:underline">
               Go back to login
             </a>
           </p>
