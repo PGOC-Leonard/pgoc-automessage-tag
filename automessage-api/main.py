@@ -9,6 +9,7 @@ from flask_cors import CORS
 from controllers.schedulemessage import scheduled_blueprint
 from controllers.sseevents import events_blueprint
 from celery_workers.celery_routes import celery_blueprint
+from controllers.emailverify import email_verification_bp
 from controllers.tagController import tags_blueprint
 from controllers.passwordreset import configure_mail, password_reset_bp
 from controllers.schedulercontroller import run_scheduler
@@ -97,6 +98,7 @@ def create_app():
     app.route('/user', methods=['POST'])(get_user_data_by_id)
     app.route('/change-profile', methods=['PUT'])(change_profile_image)
     app.register_blueprint(scheduled_blueprint)
+    app.register_blueprint(email_verification_bp)
     app.register_blueprint(password_reset_bp)
     app.register_blueprint(celery_blueprint)
     app.register_blueprint(events_blueprint)
