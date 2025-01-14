@@ -1,134 +1,232 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import notify from "../components/Toast"; // Import toast notification component
+import notify from "../components/Toast";
 import {
   Radio,
   RadioGroup,
   FormControlLabel,
   FormControl,
   FormLabel,
-  CircularProgress, // Import CircularProgress
-} from "@mui/material"; // Import MUI components
+  CircularProgress,
+} from "@mui/material";
 
 const SignupPage = ({ onSwitchToLogin }) => {
   const apiUrl = process.env.REACT_APP_AUTOMESSAGE_TAG_API_LINK;
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
+  const [verificationCode, setVerificationCode] = useState("");
+  const [isEmailVerified, setIsEmailVerified] = useState(false); // Tracks email verification
+  const [verificationStatus, setVerificationStatus] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [gender, setGender] = useState(""); // New state for gender
-
+  const [gender, setGender] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [passwordVisible, setPasswordVisible] = useState(false);
   const [confirmPasswordVisible, setConfirmPasswordVisible] = useState(false);
-  const [loading, setLoading] = useState(false); // New loading state
+  const [loading, setLoading] = useState(false);
+  const [verifying, setVerifying] = useState(false); // Tracks the email verification process
   const navigate = useNavigate();
 
-  const validateEmail = (email) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; // Regular expression for validating email
-    return emailRegex.test(email);
+  const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const domain = window.location.host;
+
+  const handleRequestVerification = async () => {
+    if (!validateEmail(email)) {
+      notify("Please enter a valid email address", "error");
+      return;
+    }
+
+    setVerifying(true);
+    setVerificationStatus("Requesting verification...");
+
+    try {
+      const response = await fetch(`${apiUrl}/verify-email`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, domain }),
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        setVerificationStatus("Verification code sent. Please check your email.");
+        notify("Verification code sent!", "success");
+      } else {
+        setVerificationStatus(data.message || "Failed to send verification code.");
+        notify(data.message || "Failed to send verification code.", "error");
+      }
+    } catch (error) {
+      setVerificationStatus("An error occurred.");
+      notify("An error occurred while requesting verification.", "error");
+    } finally {
+      setVerifying(false);
+    }
   };
 
+  const handleVerifyCode = async () => {
+    if (!verificationCode) {
+      setIsEmailVerified(false); // Reset verification status if code is empty
+      setVerificationStatus("");
+      return;
+    }
+
+    setVerifying(true);
+    setVerificationStatus("Verifying code...");
+
+    try {
+      const response = await fetch(
+        `${apiUrl}/verify-email/${verificationCode}`,
+        {
+          method: "GET",
+        }
+      );
+
+      const data = await response.json();
+      if (response.ok) {
+        setIsEmailVerified(true);
+        setVerificationStatus("Email verified successfully!");
+        notify("Email verified successfully!", "success");
+      } else {
+        setIsEmailVerified(false);
+        setVerificationStatus(data.message || "Invalid verification code.");
+        notify(data.message || "Invalid verification code.", "error");
+      }
+    } catch (error) {
+      setIsEmailVerified(false);
+      setVerificationStatus("An error occurred.");
+      notify("An error occurred during verification.", "error");
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  // useEffect to trigger code verification whenever verificationCode changes
+  useEffect(() => {
+    if (verificationCode) {
+      handleVerifyCode();
+    }
+  }, [verificationCode]);
+
   const handleSignUp = async (e) => {
-    const domain = window.location.hostname;
     e.preventDefault();
 
-    // Validate required fields
+    if (!isEmailVerified) {
+      notify("Please verify your email before registering.", "error");
+      return;
+    }
+
     if (!username || !email || !password || !confirmPassword || !gender) {
       setErrorMessage("All fields are required");
       notify("All fields are required", "error");
       return;
     }
 
-    // Validate email format
-    if (!validateEmail(email)) {
-      setErrorMessage("Please enter a valid email address");
-      notify("Please enter a valid email address", "error");
-      return;
-    }
-
-    // Check if passwords match
     if (password !== confirmPassword) {
       setErrorMessage("Passwords do not match");
       notify("Passwords do not match", "error");
       return;
     }
 
-    // Prepare the sign-up data
-    const signUpData = { username, email, password, gender,domain };
-    setLoading(true); // Set loading to true before making the API request
+    const signUpData = { username, email, password, gender, domain };
+
+    setLoading(true);
 
     try {
       const response = await fetch(`${apiUrl}/register`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(signUpData),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        notify(data.message || "Registration successful! You can now log in.", "success");
-        setTimeout(() => {
-          onSwitchToLogin();
-        }, 3000);
+        notify(data.message || "Registration successful!", "success");
+        setTimeout(() => onSwitchToLogin(), 3000);
       } else {
         setErrorMessage(data.message || "Registration failed");
         notify(data.message || "Registration failed", "error");
       }
     } catch (error) {
-      setErrorMessage("An error occurred while trying to register");
-      notify("An error occurred while trying to register", "error");
-      console.error("Sign up failed:", error);
+      setErrorMessage("An error occurred while registering");
+      notify("An error occurred while registering", "error");
     } finally {
-      setLoading(false); // Set loading to false after the API request completes
+      setLoading(false);
     }
-  };
-
-  const togglePasswordVisibility = () => {
-    setPasswordVisible(!passwordVisible);
-  };
-
-  const toggleConfirmPasswordVisibility = () => {
-    setConfirmPasswordVisible(!confirmPasswordVisible);
   };
 
   return (
     <div className="form-container sign-up-container">
       <form onSubmit={handleSignUp}>
-        <h1 className="login-page-title">Create Account</h1>
+        <h1
+          style={{
+            fontSize: "25px",
+            marginBottom: "10px",
+            fontFamily: "Montserrat",
+            fontWeight: "700",
+            color: "black",
+          }}
+        >
+          Create Account
+        </h1>
+
         {errorMessage && <p className="error-message">{errorMessage}</p>}
 
         <input
           type="text"
-          name="name"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           placeholder="Username"
           required
         />
+
         <input
           type="email"
-          name="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="Email"
           required
         />
 
+        <div className="verification-section">
+          <input
+            type="text"
+            value={verificationCode}
+            onChange={(e) => setVerificationCode(e.target.value)}
+            placeholder="Verification Code"
+          />
+          <button
+            type="button"
+            onClick={handleRequestVerification}
+            disabled={verifying}
+          >
+            {verifying ? <CircularProgress size={16} /> : "Get Code"}
+          </button>
+        </div>
+        <small>{verificationStatus}</small>
+
         <div className="pass-input-div">
           <input
             type={passwordVisible ? "text" : "password"}
-            name="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"
             required
           />
-          <span className="password-toggle" onClick={togglePasswordVisibility}>
+          <span
+            onClick={() => setPasswordVisible(!passwordVisible)}
+            style={{
+              position: "absolute",
+              right: "10px",
+              top: "50%",
+              transform: "translateY(-50%)",
+              cursor: "pointer",
+              zIndex: 2,
+              color: "#888",
+            }}
+          >
             {passwordVisible ? <FaEyeSlash /> : <FaEye />}
           </span>
         </div>
@@ -136,40 +234,48 @@ const SignupPage = ({ onSwitchToLogin }) => {
         <div className="pass-input-div">
           <input
             type={confirmPasswordVisible ? "text" : "password"}
-            name="confirmPassword"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             placeholder="Confirm Password"
             required
           />
           <span
-            className="password-toggle"
-            onClick={toggleConfirmPasswordVisibility}
+            onClick={() => setConfirmPasswordVisible(!confirmPasswordVisible)}
+            style={{
+              position: "absolute",
+              right: "10px",
+              top: "50%",
+              transform: "translateY(-50%)",
+              cursor: "pointer",
+              zIndex: 2,
+              color: "#888",
+            }}
           >
             {confirmPasswordVisible ? <FaEyeSlash /> : <FaEye />}
           </span>
         </div>
-        <div style={{ height: "5px" }}></div>
 
-        {/* Gender Selector using MUI Radio buttons */}
-        <div className="gender-selector">
-          <FormControl component="fieldset" required>
-            <FormLabel component="legend">Gender</FormLabel>
-            <RadioGroup
-              row
-              value={gender}
-              onChange={(e) => setGender(e.target.value)}
-              aria-label="gender"
-            >
-              <FormControlLabel value="male" control={<Radio />} label="Male" />
-              <FormControlLabel value="female" control={<Radio />} label="Female" />
-            </RadioGroup>
-          </FormControl>
-        </div>
+        <FormControl component="fieldset" required>
+          <FormLabel component="legend">Gender</FormLabel>
+          <RadioGroup
+            row
+            value={gender}
+            onChange={(e) => setGender(e.target.value)}
+          >
+            <FormControlLabel
+              value="male"
+              control={<Radio />}
+              label={<span style={{ fontSize: "12px" }}>Male</span>}
+            />
+            <FormControlLabel
+              value="female"
+              control={<Radio />}
+              label={<span style={{ fontSize: "12px" }}>Female</span>}
+            />
+          </RadioGroup>
+        </FormControl>
 
-        <div style={{ height: "20px" }}></div>
-        
-        <button type="submit" disabled={loading}>
+        <button type="submit" disabled={!isEmailVerified || loading}>
           {loading ? <CircularProgress size={24} /> : "Register"}
         </button>
       </form>

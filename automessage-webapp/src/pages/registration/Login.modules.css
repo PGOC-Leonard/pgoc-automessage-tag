@@ -103,6 +103,14 @@
     background-color: transparent;
     border-color: #ffffff;
   }
+
+  button:disabled {
+    background-color: #cccccc; /* Gray color to indicate it's disabled */
+    cursor: not-allowed; /* Change cursor to indicate it's not clickable */
+    pointer-events: none; /* Prevent clicking */
+    opacity: 0.6; /* Slightly transparent for visual feedback */
+  }
+  
   
   form {
     font-size: 12px;
@@ -121,6 +129,8 @@
     position: relative;
     width: 100%; /* Ensure the input takes full width */
   }
+
+  
   
   .password-toggle {
     position: absolute;
@@ -134,12 +144,13 @@
   }
   
   input {
+    height: 35px;
     background-color: #eee;
     border: none;
     padding: 12px 15px;
     margin: 8px 0;
     width: 100%;
-    padding-right: 35px; /* Add extra padding on the right to make space for the icon */
+    padding-right: 15px; /* Add extra padding on the right to make space for the icon */
   }
   
 
@@ -293,5 +304,25 @@
   footer a {
     color: #3c97bf;
     text-decoration: none;
+  }
+
+  .verification-section {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px; /* Space between input and button */
+    margin: 8px 0; /* Space above and below the row */
+  }
+  
+  .verification-section input {
+    width: 178px; /* Smaller width for the input */
+  }
+  
+  .verification-section button {
+    width: 95px;
+    padding: 0px 15px; /* Adjust padding to make the button smaller */
+    font-size: 10px; /* Smaller font size for the button */
+    height: 30px; /* Ensure consistent height with the input */
+    border-radius: 5px; /* Slightly rounded corners */
   }
   
