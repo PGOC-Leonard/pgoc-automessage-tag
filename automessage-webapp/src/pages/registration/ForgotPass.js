@@ -25,7 +25,7 @@ const ForgotPasswordPage = () => {
     setSuccessMessage("");
 
     try {
-      const response = await fetch(`${apiUrl}/forgot-password`, {
+      const response = await fetch(`${apiUrl}/reset-password`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
