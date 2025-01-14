@@ -77,10 +77,13 @@ const SignupPage = ({ onSwitchToLogin }) => {
 
     try {
       const response = await fetch(
-        `${apiUrl}/verify-email/${verificationCode}`,
-        {
-          method: "GET",
-        }
+        `${apiUrl}/verify-email/${verificationCode}`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          "ngrok-skip-browser-warning": "true",
+        },
+      }
       );
 
       const data = await response.json();
