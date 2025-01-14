@@ -125,7 +125,7 @@ const LoginPage = () => {
             {passwordVisible ? <FaEyeSlash /> : <FaEye />}
           </span>
         </div>
-        <a href="#">Forgot your password?</a>
+        <a href="#/forgot-password">Forgot your password?</a>
         
         {/* Button that becomes disabled and shows a loading spinner while waiting for response */}
         <button type="submit" disabled={loading}>
