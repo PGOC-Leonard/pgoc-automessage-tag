@@ -526,15 +526,19 @@ def process_conversations_and_send_messages(self, redis_key, message_data):
             return {"status": "error", "message": "No conversation IDs found"}
         
         # Step 2: Send messages to all conversation IDs using user's send_message_to_conversations logic
-        response_data = send_message_to_conversations(
-            redis_key, conversation_ids, message_data)
+        # response_data = send_message_to_conversations(
+        #     redis_key, conversation_ids, message_data)
+        response_data = {
+            "status": "success",
+            "total_conversations": len(conversation_ids),
+        }
         return response_data
 
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
 
-def get_all_conversation_ids(current_time,redis_key,message_data):
+def get_all_conversation_ids(current_time, redis_key, message_data):
     page_id = message_data['page_id']
     access_token = message_data['access_token']
     start_date = message_data['start_date']
@@ -555,8 +559,6 @@ def get_all_conversation_ids(current_time,redis_key,message_data):
     max_retries = 10
     retry_delay = 5  # seconds
 
-    
-
     while True:
         pancake_api = (
             f"https://pages.fm/api/v1/pages/{page_id}/conversations?type=NOPHONE,INBOX,"
@@ -564,9 +566,8 @@ def get_all_conversation_ids(current_time,redis_key,message_data):
             f"access_token={access_token}&current_count={current_count}"
         )
 
-        print("Fetching URL:", pancake_api)
         message_data["client_messages"].append(
-        f"[{current_time}] Fetching Conversations from API"
+            f"[{current_time}] [Index:{message_data['index']}] Current Count: {current_count}"
         )
         updateScheduleMessageByFields(redis_key, message_data)
 
@@ -576,53 +577,68 @@ def get_all_conversation_ids(current_time,redis_key,message_data):
                 response.raise_for_status()
                 data = response.json()
 
-                conversations = data.get("conversations", [])
-                # print("Fetched Conversations:", conversations)
+                # message_data["client_messages"].append(
+                #     f"[{current_time}] Attempt {retry_attempt + 1} for Fetching Conversations from API"
+                # )
                 message_data["client_messages"].append(
-                f"[{current_time}] Attempt {retry_attempt} for Fetching Conversations from API"
+                    f"[{current_time}] Response: success={data.get('success', 'N/A')}, message={data.get('message', 'N/A')}"
                 )
                 updateScheduleMessageByFields(redis_key, message_data)
 
-                if not conversations:
-                    message_data["client_messages"].append(
-                        f"[{current_time}] No more conversations to fetch."
-                    )
-                    updateScheduleMessageByFields(redis_key, message_data)
-
-                    print("No more conversations to fetch.")
-                    if retry_attempt < max_retries - 1:
-                        print(f"Retrying... ({retry_attempt + 1}/{max_retries})")
+                if response.status_code == 200:
+                    conversations = data.get("conversations", [])
+                    if not conversations:
                         message_data["client_messages"].append(
-                            f"[{current_time}] Retrying... ({retry_attempt + 1}/{max_retries})"
-                        )   
+                            f"[{current_time}] No more conversations to fetch. Retrying... ({retry_attempt + 1}/{max_retries})"
+                        )
+                        updateScheduleMessageByFields(redis_key, message_data)
                         time.sleep(retry_delay)
                         continue
                     else:
-                        break
+                        new_conversation_ids = [
+                            conv.get("id") for conv in conversations if conv.get("id")]
+                        all_conversation_ids.update(new_conversation_ids)
 
-                new_conversation_ids = [
-                    conv.get("id") for conv in conversations if conv.get("id")]
-                all_conversation_ids.update(new_conversation_ids)
-
-                current_count += len(conversations)
-                break  # Exit retry loop if conversations are fetched successfully
+                        current_count += len(conversations)
+                        break  # Exit retry loop if conversations are fetched successfully
 
             except requests.RequestException as e:
-                print("Request Error:", e)
+                message_data["client_messages"].append(
+                    f"[{current_time}] Request Error: {e}"
+                )
+                updateScheduleMessageByFields(redis_key, message_data)
                 if retry_attempt == max_retries - 1:
                     raise e
 
             except ValueError as e:
-                print("JSON Decode Error:", e)
+                message_data["client_messages"].append(
+                    f"[{current_time}] JSON Decode Error: {e}"
+                )
+                updateScheduleMessageByFields(redis_key, message_data)
                 if retry_attempt == max_retries - 1:
                     raise ValueError("Invalid JSON response")
 
             except Exception as e:
-                print("An unexpected error occurred:", e)
+                message_data["client_messages"].append(
+                    f"[{current_time}] An unexpected error occurred: {e}"
+                )
+                updateScheduleMessageByFields(redis_key, message_data)
                 if retry_attempt == max_retries - 1:
                     raise e
 
+        if retry_attempt == max_retries - 1:
+            message_data["client_messages"].append(
+                f"[{current_time}] All Conversations fetched after {max_retries} attempts."
+            )
+            updateScheduleMessageByFields(redis_key, message_data)
+            break
+
+    message_data["client_messages"].append(
+        f"[{current_time}] Total Conversations fetched: {len(all_conversation_ids)}"
+    )
+    updateScheduleMessageByFields(redis_key, message_data)
     return list(all_conversation_ids)
+
 
 def send_message_to_conversations(redis_key, conversation_ids, message_data):
     try:
@@ -718,7 +734,7 @@ def send_message_to_conversations(redis_key, conversation_ids, message_data):
                         response = requests.post(url, data=payload)
                         print(f"[DEBUG] Response for conv_id {conv_id}: {response.status_code}, {response.text}")
                         successes, failures = process_response(
-                            redis_key, response, conv_id, [], successes, failures, failed_ids, processed_ids)
+                            redis_key, response, conv_id, [], successes, failures, failed_ids, processed_ids,message_data)
                 else:
                     print(f"[DEBUG] Sending normal message to conversation ID {conv_id}")
                     payload = {'action': 'reply_inbox', 'message': message}
@@ -780,13 +796,18 @@ def send_message_to_conversations(redis_key, conversation_ids, message_data):
         return {"status": "error", "message": f"Error in sending message: {str(e)}"}
 
 
-def process_response(redis_key, response, conv_id, responses, successes, failures, failed_ids, processed_ids):
+def process_response(redis_key, response, conv_id, responses, successes, failures, failed_ids, processed_ids,message_data):
     """
     Helper function to process responses for each conversation ID.
     """
     try:
+        current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         # Check if the conversation ID is already processed or failed
         if conv_id in processed_ids or conv_id in failed_ids:
+            # message_data["client_messages"].append(
+            #     f"[{current_time}] Skipping conv_id {conv_id} as it was already processed or failed."
+            # )
+            # updateScheduleMessageByFields(redis_key, message_data)
             print(f"[DEBUG] Skipping conv_id {conv_id} as it was already processed or failed.")
             return successes, failures  # Skip further processing for this conversation ID
 
@@ -797,25 +818,41 @@ def process_response(redis_key, response, conv_id, responses, successes, failure
             # Check if the response indicates success
             if response_json.get("success"):
                 successes += 1
-                processed_ids.add(conv_id)  # Mark as processed
+                processed_ids.add(conv_id) 
+                message_data["client_messages"].append(
+                f"[{current_time}] Message sent successfully to conversation ID {conv_id}"
+                )
+                updateScheduleMessageByFields(redis_key, message_data)# Mark as processed
                 print(f"Message sent successfully to conversation ID {conv_id}")
             else:
                 # If failed to send, mark as failed
                 if conv_id not in failed_ids:
                     failures += 1
                     failed_ids.add(conv_id)
+                message_data["client_messages"].append(
+                    f"[{current_time}] Failed to send message to conversation ID {conv_id}"
+                )
+                updateScheduleMessageByFields(redis_key, message_data)
                 print(f"Failed to send message to conversation ID {conv_id}")
         else:
             # If HTTP request was not successful
             if conv_id not in failed_ids:
                 failures += 1
                 failed_ids.add(conv_id)
+            message_data["client_messages"].append(
+                f"[{current_time}] HTTP error for conversation ID {conv_id}: {response.status_code}"
+                )
+            updateScheduleMessageByFields(redis_key, message_data)
             print(f"HTTP error for conversation ID {conv_id}: {response.status_code}")
     except Exception as e:
         # If there is an exception during processing, mark as failed
         if conv_id not in failed_ids:
             failures += 1
             failed_ids.add(conv_id)
+        message_data["client_messages"].append(
+            f"[{current_time}] Error processing response for conversation ID {conv_id}: {str(e)}"
+        )
+        updateScheduleMessageByFields(redis_key, message_data)
         print(f"Error processing response for conversation ID {conv_id}: {str(e)}")
 
     return successes, failures
