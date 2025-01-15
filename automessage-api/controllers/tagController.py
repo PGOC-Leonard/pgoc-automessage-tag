@@ -1,4 +1,5 @@
 from datetime import datetime
+import logging
 import redis
 import json
 from flask import Blueprint, jsonify, request
@@ -36,7 +37,7 @@ def schedule_tags():
 
         # Step 1: Check for duplicates before saving
         for tagData in data_scheduled_tag:
-            print("Checking Data:",tagData)
+            logging.info("Checking Data:",tagData)
             save_response = saveTagsTask(tagData, redis_key)
 
             # If any message fails due to duplication, stop processing and return an error
@@ -69,14 +70,7 @@ def schedule_tags():
             if tagData.get('run_immediately') == True:
                 
                 result = handle_tagging(redis_key,tagData)
-                response = result.get_json()
-                if response.get('result') == "Success":
-                    tagData['status'] = "Ongoing"
-                else:
-                    tagData['status'] = "Failed"
-                
-                updateTagByFields(redis_key, tagData)
-                return response , 201      
+                return result , 201      
             else:
                 
                 has_scheduled_message = True

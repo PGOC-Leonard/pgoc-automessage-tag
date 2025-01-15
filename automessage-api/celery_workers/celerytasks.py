@@ -226,11 +226,14 @@ def TagConversationsCelery(self, redis_key, tag_index, tag_id, tag_id_name, page
     Handles multiple iterations of API calls until no more conversations are found.
     """
     time.sleep(2)
+    max_retries = 20  # Maximum retries for fetching conversations
+    retry_delay = 5
     tagged = []
     failtagged = []
     iteration = 1
     total_tagged = 0
     total_failed = 0
+    processed_ids = set()
     grand_total_conversations = 0  # NEW: Cumulative conversation count
     taskData["client_messages"] = []
     taskData["tagged"] = []
@@ -258,18 +261,88 @@ def TagConversationsCelery(self, redis_key, tag_index, tag_id, tag_id_name, page
             f"except_tags=[{tag_index}]&access_token={
                 access_token}&from_platform=web"
         )
-
+        
         try:
-            response = requests.get(url)
-            response.raise_for_status()  # Raise exception for HTTP errors
-            data = response.json()
-            data_conversations = data.get("conversations", [])
+            for retry_attempt in range(max_retries):
+                try:
+                    current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    taskData["client_messages"].append(
+                        f"[{taskData.get('Batch', 'N/A')}] [{current_time}] Attempt {retry_attempt + 1}/{max_retries} - Fetching conversations from API."
+                    )
+                    updateTagByFields(redis_key, taskData)
 
-            # Filter out conversations that already have the tag
-            conversations = [
-                conversation for conversation in data_conversations
-                if tag_id not in conversation.get("tags", [])
-            ]
+                    response = requests.get(url)
+                    # Log the response success and message
+                    logging.info(
+                        f"[Attempt {retry_attempt + 1}] Response: success={response.json().get('success', 'N/A')}, message={response.json().get('message', 'N/A')}"
+                    )
+                    taskData["client_messages"].append(
+                        f"[{taskData.get('Batch', 'N/A')}] [{current_time}] Attempt {retry_attempt + 1}] Response: success={response.json().get('success', 'N/A')}, message={response.json().get('message', 'N/A')}"
+                    )
+                    updateTagByFields(redis_key, taskData)
+
+                    # Proceed only if the status code is 200
+                    if response.status_code == 200:
+                        data = response.json()
+
+                        # Check if the "success" key exists
+                        if data.get("success", False):
+                            data_conversations = data.get("conversations", [])
+
+                            # Filter out conversations that already have the tag
+                            conversations = [
+                                conversation for conversation in data_conversations
+                                if conversation.get("id") not in processed_ids and tag_id not in conversation.get("tags", [])
+                            ]
+
+                            if conversations:
+                                taskData["client_messages"].append(
+                                    f"[{taskData.get('Batch', 'N/A')}] [{current_time}] Conversations found on attempt {retry_attempt + 1}."
+                                )
+                                updateTagByFields(redis_key, taskData)
+                                break  # Exit retry loop if conversations are found
+
+                            # Log absence of conversations for this attempt
+                            taskData["client_messages"].append(
+                                f"[{taskData.get('Batch', 'N/A')}] [{current_time}] No conversations found on attempt {retry_attempt + 1}. Retrying after {retry_delay} seconds."
+                            )
+                        else:
+                            # Log the failure reason from the response
+                            error_message = data.get("message", "Unknown error occurred.")
+                            taskData["client_messages"].append(
+                                f"[{taskData.get('Batch', 'N/A')}] [{current_time}] API response indicated failure on attempt {retry_attempt + 1}: {error_message}. Retrying..."
+                            )
+                            logging.error(
+                                f"[Attempt {retry_attempt + 1}] API response failure: {error_message}"
+                            )
+                    else:
+                        taskData["client_messages"].append(
+                            f"[{taskData.get('Batch', 'N/A')}] [{current_time}] API returned status code {response.status_code}. Retrying..."
+                        )
+                        logging.error(
+                            f"[Attempt {retry_attempt + 1}] API returned status code {response.status_code}: {response.text}"
+                        )
+
+                    updateTagByFields(redis_key, taskData)
+                    time.sleep(retry_delay)
+
+                except requests.exceptions.RequestException as e:
+                    logging.error(
+                        f"[Attempt {retry_attempt + 1}] Request Error: {e}. Retrying..."
+                    )
+                    taskData["client_messages"].append(
+                        f"[{taskData.get('Batch', 'N/A')}] [{current_time}] Error on attempt {retry_attempt + 1}: {str(e)}. Retrying after {retry_delay} seconds."
+                    )
+                    updateTagByFields(redis_key, taskData)
+
+                    if retry_attempt == max_retries - 1:
+                        taskData["client_messages"].append(
+                            f"[{taskData.get('Batch', 'N/A')}] [{current_time}] Max retries reached. Failing the task."
+                        )
+                        updateTagByFields(redis_key, taskData)
+                        raise e  # Raise exception after max retries
+
+                    time.sleep(retry_delay)
 
             if not conversations:
                 if iteration == 1:
@@ -287,7 +360,9 @@ def TagConversationsCelery(self, redis_key, tag_index, tag_id, tag_id_name, page
                         "client_messages": taskData["client_messages"],
                     }
                 else:
-                    if len(taskData["tagged"]) == grand_total_conversations:  # MODIFIED
+                    if iteration >= 2 and len(processed_ids) == grand_total_conversations:  # MODIFIED
+                        total_tagged = len(taskData["tagged"])
+                        total_failed = len(taskData["failtagged"])
                         taskData["status"] = "Success"
                         taskData['task_done_time'] = current_time
                         taskData["client_messages"].append(
@@ -341,6 +416,7 @@ def TagConversationsCelery(self, redis_key, tag_index, tag_id, tag_id_name, page
                     continue
 
                 conversation_id = f"{page_id}_{from_id}"
+                processed_ids.add(conversation_id)
                 toggle_tag_url = (
                     f"https://pages.fm/api/v1/pages/{page_id}/conversations/"
                     f"{conversation_id}/toggle_tag?access_token={access_token}"
