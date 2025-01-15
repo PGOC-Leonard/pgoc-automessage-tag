@@ -526,12 +526,14 @@ def process_conversations_and_send_messages(self, redis_key, message_data):
             return {"status": "error", "message": "No conversation IDs found"}
         
         # Step 2: Send messages to all conversation IDs using user's send_message_to_conversations logic
-        # response_data = send_message_to_conversations(
-        #     redis_key, conversation_ids, message_data)
-        response_data = {
-            "status": "success",
-            "total_conversations": len(conversation_ids),
-        }
+        response_data = send_message_to_conversations(
+            redis_key, conversation_ids, message_data)
+        
+        # Uncomment the following lines to test conversation_ids fetch without sending messages
+        # response_data = {
+        #     "status": "success",
+        #     "total_conversations": len(conversation_ids),
+        # }
         return response_data
 
     except Exception as e:
