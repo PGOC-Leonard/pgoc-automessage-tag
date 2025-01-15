@@ -27,7 +27,7 @@ def test_tag():
             return jsonify({"error" : "No Data provided"}), 400
         
         result = handle_tagging(redis_key,task_data)
-        return jsonify(result), 200
+        return result, 200
     except Exception as e:
         return jsonify({"status" : "error", "message": str(e)}), 500
         

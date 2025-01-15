@@ -34,10 +34,20 @@ def handle_tagging(redis_key, tagTask):
         end_time_str = tagTask.get("end_time")
         start_date = tagTask.get("start_date")
         end_date = tagTask.get("end_date")
+        start_hour = "00"
+        start_minute = "00"
+        start_seconds = "00"
+        end_hour = "23"
+        end_minute = "59"
+        end_seconds = "59"
         
         # Combine date and time into datetime objects
-        start_datetime = datetime.strptime(f"{start_date} {start_time_str}", "%Y-%m-%d %H:%M:%S")
-        end_datetime = datetime.strptime(f"{end_date} {end_time_str}", "%Y-%m-%d %H:%M:%S")
+        start_datetime = datetime.strptime(f"{start_date} {start_hour}:{start_minute}:{start_seconds}", "%Y-%m-%d %H:%M:%S")
+        start_time = int(start_datetime.timestamp())
+
+                                # Combine end date, hour, minute, and second (with conversational Time)
+        end_datetime = datetime.strptime(f"{end_date} {end_hour}:{end_minute}:{end_seconds}", "%Y-%m-%d %H:%M:%S")
+        end_time = int(end_datetime.timestamp())
 
         # Convert to epoch time
         start_epoch_time = int(start_datetime.timestamp())
@@ -49,6 +59,10 @@ def handle_tagging(redis_key, tagTask):
         # Fetch the tag info and map the needed values
         tag_index, tag_id = get_tag_info(tag_id_name, tag_info_api_url)   
         if tag_id is None or tag_index is None:
+            tagTask["status"] = "Failed"
+            tagTask["total_tags"] = 0
+            updateTagByFields(redis_key, tagTask)
+            
             return jsonify({
                 "message": "Tag Task Added",
                 "result": "Failed",
@@ -56,13 +70,12 @@ def handle_tagging(redis_key, tagTask):
                 "error": "Tag information not found"
             })
 
-        taggingtask = TagConversationsCelery.apply_async(args=[redis_key, tag_index, tag_id, tag_id_name, page_id, access_token, start_epoch_time, end_epoch_time , tagTask])
+        taggingtask = TagConversationsCelery.apply_async(args=[redis_key, tag_index, tag_id, tag_id_name, page_id, access_token, start_time, end_time , tagTask])
         time.sleep(1)
 
         # Update tagTask with task details
         tagTask["task_id"] = taggingtask.id
         tagTask["task_result"] = str(taggingtask.result)
-        tagTask["status"] = "Ongoing"
         updateTagByFields(redis_key, tagTask)
 
         # Response data for success
