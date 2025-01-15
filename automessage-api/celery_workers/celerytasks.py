@@ -277,7 +277,7 @@ def TagConversationsCelery(self, redis_key, tag_index, tag_id, tag_id_name, page
                         f"[Attempt {retry_attempt + 1}] Response: success={response.json().get('success', 'N/A')}, message={response.json().get('message', 'N/A')}"
                     )
                     taskData["client_messages"].append(
-                        f"[{taskData.get('Batch', 'N/A')}] [{current_time}] Attempt {retry_attempt + 1}] Response: success={response.json().get('success', 'N/A')}, message={response.json().get('message', 'N/A')}"
+                        f"[{taskData.get('Batch', 'N/A')}] [{current_time}] [Attempt {retry_attempt + 1}] Response: success={response.json().get('success', 'N/A')}, message={response.json().get('message', 'N/A')}"
                     )
                     updateTagByFields(redis_key, taskData)
 
