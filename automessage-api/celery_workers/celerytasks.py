@@ -526,6 +526,7 @@ def process_conversations_and_send_messages(self, redis_key, message_data):
             return {"status": "error", "message": "No conversation IDs found"}
         
         # Step 2: Send messages to all conversation IDs using user's send_message_to_conversations logic
+        print(f"Total_conversations: {len(conversation_ids)}")
         response_data = send_message_to_conversations(
             redis_key, conversation_ids, message_data)
         
@@ -661,7 +662,7 @@ def send_message_to_conversations(redis_key, conversation_ids, message_data):
 
         # Deduplicate conversation IDs
         conversation_ids = list(set(conversation_ids))
-        print(f"[DEBUG] Deduplicated conversation IDs: {conversation_ids}")
+        # print(f"[DEBUG] Deduplicated conversation IDs: {conversation_ids}")
 
         # Extract values from message_data
         page_id = message_data["page_id"]
@@ -743,7 +744,7 @@ def send_message_to_conversations(redis_key, conversation_ids, message_data):
                     response = requests.post(url, data=payload)
                     print(f"[DEBUG] Response for conv_id {conv_id}: {response.status_code}, {response.text}")
                     successes, failures = process_response(
-                        redis_key, response, conv_id, [], successes, failures, failed_ids, processed_ids)
+                        redis_key, response, conv_id, [], successes, failures, failed_ids, processed_ids,message_data)
 
                 # After each processed conversation ID, update the success/failure counts and save progress
                 progress = ((successes + failures) / total_conversations) * 100
