@@ -503,8 +503,8 @@ def process_conversations_and_send_messages(self, redis_key, message_data):
     current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     message_data["client_messages"] = []
     message_data["client_messages"].append(
-                        f"[{current_time}] Getting Conversation Ids"
-                    )
+        f"[{current_time}] Getting Conversation Ids"
+    )
     message_data["status"] = "In Progress"
     updateScheduleMessageByFields(redis_key, message_data)
     print("Getting conversation IDs and sending messages")
@@ -513,8 +513,8 @@ def process_conversations_and_send_messages(self, redis_key, message_data):
         conversation_ids = get_all_conversation_ids(message_data)
         if not conversation_ids:
             message_data["client_messages"].append(
-                        f"[{current_time}] No conversation IDs Found between {message_data['start_date']} - {message_data['end_date']}"
-                    )
+                f"[{current_time}] No conversation IDs Found between {message_data['start_date']} - {message_data['end_date']}"
+            )
             message_data["success"] = 0
             message_data["failed"] = 0
             message_data["status"] = "No Conversations"
@@ -552,50 +552,59 @@ def get_all_conversation_ids(message_data):
 
     all_conversation_ids = set()
     current_count = 0
+    max_retries = 10
+    retry_delay = 5  # seconds
 
-    print(f"Start Epoch Time: {
-          start_epoch_time}, End Epoch Time: {end_epoch_time}")
+    print(f"Start Epoch Time: {start_epoch_time}, End Epoch Time: {end_epoch_time}")
 
     while True:
         pancake_api = (
-            f"https://pages.fm/api/v1/pages/{
-                page_id}/conversations?type=NOPHONE,INBOX,"
-            f"CREATE_DATE:{
-                start_epoch_time}+-+{end_epoch_time}&mode=OR&from_platform=web&"
+            f"https://pages.fm/api/v1/pages/{page_id}/conversations?type=NOPHONE,INBOX,"
+            f"CREATE_DATE:{start_epoch_time}+-+{end_epoch_time}&mode=OR&from_platform=web&"
             f"access_token={access_token}&current_count={current_count}"
         )
 
         print("Fetching URL:", pancake_api)
 
-        try:
-            response = requests.get(pancake_api)
-            response.raise_for_status()
-            data = response.json()
+        for retry_attempt in range(max_retries):
+            try:
+                response = requests.get(pancake_api)
+                response.raise_for_status()
+                data = response.json()
 
-            conversations = data.get("conversations", [])
-            print("Fetched Conversations:", conversations)
+                conversations = data.get("conversations", [])
+                # print("Fetched Conversations:", conversations)
 
-            if not conversations:
-                print("No more conversations to fetch.")
-                break
+                if not conversations:
+                    print("No more conversations to fetch.")
+                    if retry_attempt < max_retries - 1:
+                        print(f"Retrying... ({retry_attempt + 1}/{max_retries})")
+                        time.sleep(retry_delay)
+                        continue
+                    else:
+                        break
 
-            new_conversation_ids = [
-                conv.get("id") for conv in conversations if conv.get("id")]
-            all_conversation_ids.update(new_conversation_ids)
+                new_conversation_ids = [
+                    conv.get("id") for conv in conversations if conv.get("id")]
+                all_conversation_ids.update(new_conversation_ids)
 
-            current_count += len(conversations)
+                current_count += len(conversations)
+                break  # Exit retry loop if conversations are fetched successfully
 
-        except requests.RequestException as e:
-            print("Request Error:", e)
-            raise e
+            except requests.RequestException as e:
+                print("Request Error:", e)
+                if retry_attempt == max_retries - 1:
+                    raise e
 
-        except ValueError as e:
-            print("JSON Decode Error:", e)
-            raise ValueError("Invalid JSON response")
+            except ValueError as e:
+                print("JSON Decode Error:", e)
+                if retry_attempt == max_retries - 1:
+                    raise ValueError("Invalid JSON response")
 
-        except Exception as e:
-            print("An unexpected error occurred:", e)
-            raise e
+            except Exception as e:
+                print("An unexpected error occurred:", e)
+                if retry_attempt == max_retries - 1:
+                    raise e
 
     return list(all_conversation_ids)
 
@@ -653,13 +662,13 @@ def send_message_to_conversations(redis_key, conversation_ids, message_data):
                 if not reply_helper_message:
                     print(f"[DEBUG] No reply helper found for {message_title}. Scheduled message for {schedule_time}.")
                     message_data["client_messages"].append(
-                    f"[{current_time}] No Quick Message found for {message_title}."
+                        f"[{current_time}] No Quick Message found for {message_title}."
                     )
                     message_data["status"] = "Failed"
                     updateScheduleMessageByFields(redis_key, message_data)
             except requests.exceptions.RequestException as e:
                 message_data["client_messages"].append(
-                f"[{current_time}] Error in processing the reply helper: {str(e)}."
+                    f"[{current_time}] Error in processing the reply helper: {str(e)}."
                 )
                 message_data["status"] = "Failed"
                 updateScheduleMessageByFields(redis_key, message_data)
@@ -731,7 +740,7 @@ def send_message_to_conversations(redis_key, conversation_ids, message_data):
         if successes == 0 and failures == len(conversation_ids):
             message_data["status"] = "Failed"
             message_data["client_messages"].append(
-            f"[{current_time}]  Failed to send messages to all conversation IDs."
+                f"[{current_time}]  Failed to send messages to all conversation IDs."
             )
             updateScheduleMessageByFields(redis_key, message_data)
             return {"status": "error", "message": "Failed to send messages to all conversation IDs."}
@@ -749,7 +758,7 @@ def send_message_to_conversations(redis_key, conversation_ids, message_data):
         print(f"[DEBUG] Error in sending message: {str(e)}")
         message_data["status"] = "Failed"
         message_data["client_messages"].append(
-        f"[{current_time}] Error in sending message: {str(e)}"
+            f"[{current_time}] Error in sending message: {str(e)}"
         )
         updateScheduleMessageByFields(redis_key, message_data)
         return {"status": "error", "message": f"Error in sending message: {str(e)}"}
