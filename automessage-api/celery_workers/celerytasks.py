@@ -510,7 +510,7 @@ def process_conversations_and_send_messages(self, redis_key, message_data):
     print("Getting conversation IDs and sending messages")
     try:
         # Step 1: Get all conversation IDs
-        conversation_ids = get_all_conversation_ids(message_data)
+        conversation_ids = get_all_conversation_ids(current_time,redis_key,message_data)
         if not conversation_ids:
             message_data["client_messages"].append(
                 f"[{current_time}] No conversation IDs Found between {message_data['start_date']} - {message_data['end_date']}"
@@ -534,7 +534,7 @@ def process_conversations_and_send_messages(self, redis_key, message_data):
         return {"status": "error", "message": str(e)}
 
 
-def get_all_conversation_ids(message_data):
+def get_all_conversation_ids(current_time,redis_key,message_data):
     page_id = message_data['page_id']
     access_token = message_data['access_token']
     start_date = message_data['start_date']
@@ -555,7 +555,7 @@ def get_all_conversation_ids(message_data):
     max_retries = 10
     retry_delay = 5  # seconds
 
-    print(f"Start Epoch Time: {start_epoch_time}, End Epoch Time: {end_epoch_time}")
+    
 
     while True:
         pancake_api = (
@@ -565,6 +565,10 @@ def get_all_conversation_ids(message_data):
         )
 
         print("Fetching URL:", pancake_api)
+        message_data["client_messages"].append(
+        f"[{current_time}] Fetching Conversations from API"
+        )
+        updateScheduleMessageByFields(redis_key, message_data)
 
         for retry_attempt in range(max_retries):
             try:
@@ -574,11 +578,23 @@ def get_all_conversation_ids(message_data):
 
                 conversations = data.get("conversations", [])
                 # print("Fetched Conversations:", conversations)
+                message_data["client_messages"].append(
+                f"[{current_time}] Attempt {retry_attempt} for Fetching Conversations from API"
+                )
+                updateScheduleMessageByFields(redis_key, message_data)
 
                 if not conversations:
+                    message_data["client_messages"].append(
+                        f"[{current_time}] No more conversations to fetch."
+                    )
+                    updateScheduleMessageByFields(redis_key, message_data)
+
                     print("No more conversations to fetch.")
                     if retry_attempt < max_retries - 1:
                         print(f"Retrying... ({retry_attempt + 1}/{max_retries})")
+                        message_data["client_messages"].append(
+                            f"[{current_time}] Retrying... ({retry_attempt + 1}/{max_retries})"
+                        )   
                         time.sleep(retry_delay)
                         continue
                     else:
