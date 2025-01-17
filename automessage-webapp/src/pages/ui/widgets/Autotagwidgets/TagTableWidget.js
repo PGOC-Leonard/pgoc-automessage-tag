@@ -160,9 +160,6 @@ function TagTableWidget({
       "Start Time",
       "End Time",
       "Total Tags",
-      "Progress",
-      "Tagged Conversations",
-      "Failed Conversations",
       "Task ID",
       "Task Done Time",
     ];
@@ -200,9 +197,6 @@ function TagTableWidget({
       escapeCSVValue(row.start_time),
       escapeCSVValue(row.end_time),
       escapeCSVValue(row.total_tags),
-      escapeCSVValue(row.progress),
-      escapeCSVValue(formatArray(row.tagged)), // Include full array content
-      escapeCSVValue(formatArray(row.failedtagged)), // Include full array content
       escapeCSVValue(row.task_id),
       escapeCSVValue(formatDate(row.tagging_done_time)),
     ]);
