@@ -9,7 +9,7 @@ import notify from "../components/Toast.js";
 import LinearProgress from "@mui/material/LinearProgress";
 import { fetchDataTag, saveTagData } from "../../services/AutoTagFunctions.js";
 import { format, isEqual } from "date-fns";
-import { EventSource } from 'extended-eventsource';
+import { EventSource } from "extended-eventsource";
 
 const AutoTagPage = () => {
   const apiUrl = process.env.REACT_APP_AUTOMESSAGE_TAG_API_LINK;
@@ -32,10 +32,10 @@ const AutoTagPage = () => {
 
     // Log the data from tagtableData corresponding to the selected index
     const selectedData = tagtableData[index]; // Access the row data at the selected index
-     
-    setDataIndex(selectedData.index)
-    console.log("Data Index:", selectedDataIndex)
-    console.log("Data:", selectedData)
+
+    setDataIndex(selectedData.index);
+    console.log("Data Index:", selectedDataIndex);
+    console.log("Data:", selectedData);
     // Log the row data
 
     // const progressValue = selectedData.progress != null ? selectedData.progress : 0;
@@ -44,33 +44,34 @@ const AutoTagPage = () => {
 
   const fetchInitialData = async () => {
     const redis_key = localStorage.getItem("redis_key");
-  
+
     try {
       const response = await fetchDataTag(redis_key);
-  
+
       if (response && response.data) {
         const Data = response.data; // Extract data from the response
-  
+
         // Filter out items with the status "No Conversations" from the data
-        const filteredData = Data.filter(item => 
-          item.status?.toLowerCase() !== "no conversations"
+        const filteredData = Data.filter(
+          (item) => item.status?.toLowerCase() !== "no conversations"
         );
-  
+
         // Calculate total progress considering special cases for specific statuses
         const maxProgress = filteredData.length * 100; // Each item's max progress is 100
         const totalProgress = filteredData.reduce((sum, item) => {
           const status = item.status?.toLowerCase();
-          const isFinalStatus = status === "failed" || status === "stopped" ;
-  
+          const isFinalStatus = status === "failed" || status === "stopped";
+
           // Treat progress as 100 for final statuses, otherwise use the item's actual progress
-          return sum + (isFinalStatus ? 100 : (item.progress || 0));
+          return sum + (isFinalStatus ? 100 : item.progress || 0);
         }, 0);
-  
+
         // Calculate the overall progress percentage
-        const overallProgress = maxProgress > 0 ? (totalProgress / maxProgress) * 100 : 0;
-  
+        const overallProgress =
+          maxProgress > 0 ? (totalProgress / maxProgress) * 100 : 0;
+
         setProgress(overallProgress); // Update the main progress bar
-  
+
         // Update progress color and text based on the overall progress status
         if (overallProgress === 100) {
           setProgressColor("#279100");
@@ -82,30 +83,31 @@ const AutoTagPage = () => {
           setProgressColor("#46923c");
           setProgressText("No Progress");
         }
-  
+
+        // Process each item in the data array
         // Process each item in the data array
         Data.forEach((dataItem) => {
           if (dataItem.client_messages) {
             const currentTime = new Date();
+
             if (dataItem.tagging_done_time) {
               const taggingDoneTime = new Date(dataItem.tagging_done_time);
               const timeDifference = (currentTime - taggingDoneTime) / 1000; // Time difference in seconds
-  
-              // Add messages only if time difference is <= 30 seconds
-              if (timeDifference <= 30) {
-                dataItem.client_messages.forEach((message) => {
-                  addMessage(`${message}`);
-                });
+
+              // Stop adding messages if tagging_done_time is more than 30 seconds old
+              if (timeDifference > 30) {
+                console.log(
+                  `Skipping message as tagging_done_time is older than 30 seconds: ${dataItem.client_messages}`
+                );
+                return; // Skip this dataItem and do not add the message
               }
-            } else {
-              // If `tagging_done_time` is not present, always add messages
-              dataItem.client_messages.forEach((message) => {
-                addMessage(`${message}`);
-              });
             }
+
+            // Add the message if tagging_done_time is not present or within 30 seconds
+            addMessage(`${dataItem.client_messages}`);
           }
         });
-  
+
         setTagTableData(Data); // Update state with the fetched data
         console.log("Table data successfully loaded!", "success");
       } else {
@@ -115,51 +117,90 @@ const AutoTagPage = () => {
       console.error("Error fetching table data:", error);
     }
   };
-  
 
-  // UseEffect to establish the SSE connection
   useEffect(() => {
-    fetchInitialData();
-
+    fetchInitialData(); // Initial fetch when the component mounts
+  
     const redis_key = localStorage.getItem("redis_key");
-    // Create a new EventSource to listen for SSE data from the Flask server
-    const eventSource = new EventSource(
-      `${apiUrl}/tagevents?key=${redis_key}`,
-      {
-        headers: {
-          "ngrok-skip-browser-warning": "true",
-        },
-        retry: 3000,
-      });
-
-    // Handle incoming messages from the server
-    eventSource.onmessage = (event) => {
-      try {
-        const parsedData = JSON.parse(event.data);
-        console.log("Received SSE:", parsedData);
-
-        // Parse the data if it's JSON formatted (optional, depends on your server)
-
-        // Handle specific signals or events
-        if (parsedData.eventType === "update") {
-          fetchInitialData();
-          console.log("Data was updated", "success");
-          // You can call specific functions here, like fetchInitialData()
+    let lastUpdateTime = 0; // Track the last time an update was fetched
+    let eventSource = null; // Declare the EventSource variable
+  
+    const createEventSource = () => {
+      // Create a new EventSource to listen for SSE data from the Flask server
+      eventSource = new EventSource(
+        `${apiUrl}/tagevents?key=${redis_key}`,
+        {
+          headers: {
+            "ngrok-skip-browser-warning": "true",
+          },
+          retry: 1500, // Retry connection every 1.5 seconds
         }
-      } catch (error) {
-        console.error("Error parsing SSE data:", error);
+      );
+  
+      // Handle incoming messages from the server
+      eventSource.onmessage = (event) => {
+        try {
+          const parsedData = JSON.parse(event.data);
+          console.log("Received SSE:", parsedData);
+    
+          if (parsedData.eventType === "update") {
+            console.log("Update signal received");
+    
+            // Get the current timestamp
+            const currentTime = Date.now();
+    
+            // Only fetch data if 3 seconds have passed since the last fetch
+            if (currentTime - lastUpdateTime >= 3000) {
+              lastUpdateTime = currentTime; // Update the last fetch time
+              fetchInitialData();
+              console.log("Data fetch triggered", "success");
+            } else {
+              console.log("Skipping fetch; waiting for cooldown period.");
+            }
+          }
+        } catch (error) {
+          console.error("Error parsing SSE data:", error);
+        }
+      };
+  
+      // Handle errors with the SSE connection
+      eventSource.onerror = (error) => {
+        console.error("Error with SSE:", error);
+        eventSource.close(); // Close the connection on error
+      };
+    };
+  
+    const destroyEventSource = () => {
+      if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+        console.log("EventSource closed");
       }
     };
-
-    // Handle errors with the SSE connection
-    eventSource.onerror = (error) => {
-      console.error("Error with SSE:", error);
-      eventSource.close(); // Close the connection on error
+  
+    // Listen for focus and blur events to manage the EventSource connection
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        console.log("Tab is focused, resuming SSE connection");
+        createEventSource(); // Resume listening to SSE
+      } else {
+        console.log("Tab is not focused, stopping SSE connection");
+        destroyEventSource(); // Stop listening to SSE
+      }
     };
-
-    // Clean up the event source when the component unmounts
+  
+    // Attach the event listener for visibility change
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+  
+    // Initial setup: create the EventSource if the tab is visible
+    if (document.visibilityState === "visible") {
+      createEventSource();
+    }
+  
+    // Clean up the event listener and EventSource when the component unmounts
     return () => {
-      eventSource.close();
+      destroyEventSource(); // Close EventSource when unmounting
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, []); // Runs only once when the component mounts
 
@@ -276,10 +317,7 @@ const AutoTagPage = () => {
       });
 
       if (isDuplicate) {
-        notify(
-          "Duplicate Message: This Tagging Task already exists.",
-          "error"
-        );
+        notify("Duplicate Message: This Tagging Task already exists.", "error");
         return; // Stop processing to prevent saving duplicates
       }
 
