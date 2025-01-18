@@ -150,7 +150,7 @@ const AutoTagPage = () => {
             const currentTime = Date.now();
     
             // Only fetch data if 3 seconds have passed since the last fetch
-            if (currentTime - lastUpdateTime >= 3000) {
+            if (currentTime - lastUpdateTime >= 2000) {
               lastUpdateTime = currentTime; // Update the last fetch time
               fetchInitialData();
               console.log("Data fetch triggered", "success");
