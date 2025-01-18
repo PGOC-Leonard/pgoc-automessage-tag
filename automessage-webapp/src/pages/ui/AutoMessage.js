@@ -132,51 +132,94 @@ const AutoMessagePage = () => {
     }
   };
 
-  // UseEffect to establish the SSE connection
   useEffect(() => {
-    fetchInitialData();
-
-    const redis_key = localStorage.getItem("redis_key");
-    // Create a new EventSource to listen for SSE data from the Flask server
-    const eventSource = new EventSource(
-      `${apiUrl}/events?key=${redis_key}`,
-      {
-        headers: {
-          "ngrok-skip-browser-warning": "true",
-        },
-        retry: 3000,
-      });
-
-    // Handle incoming messages from the server
-    eventSource.onmessage = (event) => {
-      try {
-        const parsedData = JSON.parse(event.data);
-        console.log("Received SSE:", parsedData);
-
-        // Parse the data if it's JSON formatted (optional, depends on your server)
-
-        // Handle specific signals or events
-        if (parsedData.eventType === "update") {
-          fetchInitialData();
-          console.log("Data was updated", "success");
-          // You can call specific functions here, like fetchInitialData()
+      fetchInitialData(); // Initial fetch when the component mounts
+    
+      const redis_key = localStorage.getItem("redis_key");
+      let lastUpdateTime = 0; // Track the last time an update was fetched
+      let eventSource = null; // Declare the EventSource variable
+    
+      const createEventSource = () => {
+        // Create a new EventSource to listen for SSE data from the Flask server
+        eventSource = new EventSource(
+          `${apiUrl}/events?key=${redis_key}`,
+          {
+            headers: {
+              "ngrok-skip-browser-warning": "true",
+            },
+            retry: 1500, // Retry connection every 1.5 seconds
+          }
+        );
+    
+        // Handle incoming messages from the server
+        eventSource.onmessage = (event) => {
+          try {
+            const parsedData = JSON.parse(event.data);
+            console.log("Received SSE:", parsedData);
+      
+            if (parsedData.eventType === "update") {
+              console.log("Update signal received");
+      
+              // Get the current timestamp
+              const currentTime = Date.now();
+      
+              // Only fetch data if 3 seconds have passed since the last fetch
+              if (currentTime - lastUpdateTime >= 3000) {
+                lastUpdateTime = currentTime; // Update the last fetch time
+                fetchInitialData();
+                console.log("Data fetch triggered", "success");
+              } else {
+                console.log("Skipping fetch; waiting for cooldown period.");
+              }
+            }
+          } catch (error) {
+            console.error("Error parsing SSE data:", error);
+          }
+        };
+    
+        // Handle errors with the SSE connection
+        eventSource.onerror = (error) => {
+          console.error("Error with SSE:", error);
+          eventSource.close(); // Close the connection on error
+        };
+      };
+    
+      const destroyEventSource = () => {
+        if (eventSource) {
+          eventSource.close();
+          eventSource = null;
+          console.log("EventSource closed");
         }
-      } catch (error) {
-        console.error("Error parsing SSE data:", error);
+      };
+    
+      // Listen for focus and blur events to manage the EventSource connection
+      const handleVisibilityChange = () => {
+        const currentTime = new Date();
+        const formattedTime = currentTime.toISOString().slice(0, 19).replace('T', ' ');
+        if (document.visibilityState === "visible") {
+          fetchInitialData(); // Fetch data when tab is focused
+          addMessage(`[${formattedTime}] Tab is focused, updating data connection`);
+          createEventSource(); // Resume listening to SSE
+        } else {
+          addMessage(`[${formattedTime}] Tab is not focused, saving bandwidth connection`);
+          destroyEventSource(); // Stop listening to SSE
+        }
+      };
+    
+      // Attach the event listener for visibility change
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+    
+      // Initial setup: create the EventSource if the tab is visible
+      if (document.visibilityState === "visible") {
+        createEventSource();
       }
-    };
-
-    // Handle errors with the SSE connection
-    eventSource.onerror = (error) => {
-      console.error("Error with SSE:", error);
-      eventSource.close(); // Close the connection on error
-    };
-
-    // Clean up the event source when the component unmounts
-    return () => {
-      eventSource.close();
-    };
-  }, []);
+    
+      // Clean up the event listener and EventSource when the component unmounts
+      return () => {
+        destroyEventSource(); // Close EventSource when unmounting
+        document.removeEventListener("visibilitychange", handleVisibilityChange);
+      };
+    }, []); // Runs only once when the compo
 
   const validateForm = () => {
     const missingFields = [];

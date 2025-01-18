@@ -337,6 +337,8 @@ def TagConversationsCelery(self, redis_key, tag_index, tag_id, tag_id_name, page
 
             if not conversations:
                 if iteration == 1:
+                    taskData["tagged"] = len(tagged)
+                    taskData["failtagged"] = len(failtagged)
                     taskData["status"] = "No Conversations"
                     taskData["client_messages"] = f"[{taskData.get(
                             'Batch', 'N/A')}] [{current_time}] No Conversations found for tagging."
@@ -353,8 +355,10 @@ def TagConversationsCelery(self, redis_key, tag_index, tag_id, tag_id_name, page
                     }
                 else:
                     if iteration >= 2 and len(processed_ids) == grand_total_conversations:  # MODIFIED
-                        total_tagged = len(tagged)
                         total_failed = len(failtagged)
+                        taskData["tagged"] = total_tagged
+                        taskData["total_conversations"] = len(processed_ids)
+                        taskData["failtagged"] = total_failed
                         taskData["status"] = "Success"
                         taskData["client_messages"] = f"[{taskData.get(
                                 'Batch', 'N/A')}] [{current_time}] No more conversations to process. Tagging completed."
@@ -364,6 +368,8 @@ def TagConversationsCelery(self, redis_key, tag_index, tag_id, tag_id_name, page
                         taskData["progress"] = 100
                         updateTagByFields(redis_key, taskData)
                     elif not tagged:
+                        taskData["tagged"] = len(tagged)
+                        taskData["failtagged"] = len(failtagged)
                         taskData["client_messages"] = f"[{taskData.get('Batch', 'N/A')}] [{current_time}] No conversations were successfully tagged."
                         updateTagByFields(redis_key, taskData)
                         time.sleep(2)
@@ -397,8 +403,6 @@ def TagConversationsCelery(self, redis_key, tag_index, tag_id, tag_id_name, page
 
                 from_id = conversation.get("from", {}).get("id")
                 if not from_id:
-                    failtagged.append(
-                        {"conversation_id": None, "error": "Missing 'from.id'"})
                     taskData["client_messages"] = f"[{taskData.get(
                             'Batch', 'N/A')}] [{current_time}] Failed to Tag: Missing 'from.id'."
                     
@@ -425,26 +429,23 @@ def TagConversationsCelery(self, redis_key, tag_index, tag_id, tag_id_name, page
 
                     if tag.get("success"):
                         tagged.append(
-                            {"conversation_id": conversation_id, "status": "Success"})
+                            conversation_id)
                         taskData["total_tags"] += 1
                         taskData["client_messages"] = f"[{taskData.get(
                                 'Batch', 'N/A')}] [{current_time}] Successfully tagged {len(tagged)} conversation_ids ."
                         
                     else:
-                        failtagged.append(
-                            {"conversation_id": conversation_id, "status": "Failed"})
+                        failtagged.append(conversation_id)
                         taskData["client_messages"] = f"[{taskData.get(
                                 'Batch', 'N/A')}] [{current_time}] Failed to tag {len(failtagged)} conversation_ids."
                         
                 except requests.exceptions.RequestException as e:
-                    failtagged.append(
-                        {"conversation_id": conversation_id, "error": str(e)})
+                    failtagged.append(conversation_id)
                     taskData["client_messages"] = f"[{taskData.get('Batch', 'N/A')}] [{current_time}] Failed to tag conversation_id {
                             conversation_id} due to error: {str(e)}."
                 
                 except Exception as e:
-                    failtagged.append(
-                        {"conversation_id": conversation_id, "error": str(e)})
+                    failtagged.append(conversation_id)
                     taskData["client_messages"] = f"[{taskData.get('Batch', 'N/A')}] [{current_time}] Failed to tag conversation_id {
                             conversation_id} due to error: {str(e)}."
 
@@ -464,9 +465,6 @@ def TagConversationsCelery(self, redis_key, tag_index, tag_id, tag_id_name, page
             updateTagByFields(redis_key, taskData)
             raise e
         
-    taskData["tagged"] = len(tagged)
-    taskData["failtagged"] = len(failtagged)
-    updateScheduleMessageByFields(redis_key, taskData)
     
     return {
         "status": taskData["status"],
