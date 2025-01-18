@@ -334,6 +334,8 @@ function TagTableWidget({
               <th className="px-4 py-2 text-center">Status</th>
               <th className="px-4 py-2 text-center">Total Tags</th>
               <th className="px-4 py-2 text-center">Progress</th>
+              <th className="px-4 py-2 text-center">Failed</th>
+              <th className="px-4 py-2 text-center">Total Conversations</th>
             </tr>
           </thead>
           <tbody>
@@ -428,6 +430,8 @@ function TagTableWidget({
                       {`${progress}%`} {progressText}
                     </span>
                   </td>
+                  <td className="px-4 py-2 text-center">{row.failtagged}</td>
+                  <td className="px-4 py-2 text-center">{row.total_conversations}</td>
                 </tr>
               );
             })}
