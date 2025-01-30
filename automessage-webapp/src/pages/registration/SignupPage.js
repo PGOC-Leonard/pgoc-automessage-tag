@@ -82,6 +82,7 @@ const SignupPage = ({ onSwitchToLogin }) => {
         headers: {
           "Content-Type": "application/json",
           "ngrok-skip-browser-warning": "true",
+          "skip_zrok_interstitial" : "true"
         },
       }
       );
