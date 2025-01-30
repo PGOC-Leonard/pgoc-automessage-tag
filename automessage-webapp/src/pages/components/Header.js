@@ -50,7 +50,9 @@ const Header = ({ toggleSidebar, handleLogout, sidebarOpen }) => {
     try {
       const response = await fetch(`${apiUrl}/user`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" ,
+          "ngrok-skip-browser-warning": "true",
+        },
         body: JSON.stringify({ user_id: userId }),
       });
 
