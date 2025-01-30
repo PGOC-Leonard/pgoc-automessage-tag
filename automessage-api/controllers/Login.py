@@ -87,7 +87,6 @@ def register():
         cursor.close()
         connection.close()
 
-
 def login():
     data = request.get_json()
 
@@ -121,7 +120,10 @@ def login():
             return jsonify({'message': 'Password does not match'}), 401
 
         # Check domain
-        if user['domain_url'] != domain:
+        db_domain = user['domain_url']
+        
+        # Allow specific domain exception for local login
+        if db_domain != domain and not (db_domain == "pgoc-automessage-tag.vercel.app" and domain == "192.168.0.19"):
             return jsonify({'message': 'Your account cannot be found in this domain. Please log in to your dedicated domain.'}), 403
 
         # Check user status
@@ -132,8 +134,6 @@ def login():
             return jsonify({'message': 'Your account is deactivated. Proceed with payment to continue using the service.'}), 403
         elif user_status == 'banned':
             return jsonify({'message': 'Your account is banned.'}), 403
-
-        
 
         # Generate JWT token
         access_token = create_access_token(
