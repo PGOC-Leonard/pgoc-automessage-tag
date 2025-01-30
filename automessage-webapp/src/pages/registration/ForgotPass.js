@@ -30,6 +30,7 @@ const ForgotPasswordPage = () => {
         headers: {
           "Content-Type": "application/json",
           "ngrok-skip-browser-warning": "true",
+          "skip_zrok_interstitial" : "true"
         },
         body: JSON.stringify({ email, domain }), // Include domain in request body
       });

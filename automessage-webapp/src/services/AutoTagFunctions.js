@@ -23,6 +23,7 @@ export const saveTagData = async (data_scheduled_tag) => {
         "Content-Type": "application/json",
         "ngrok-skip-browser-warning": "true",
         Authorization: `Bearer ${token}`,
+        "skip_zrok_interstitial" : "true"
       },
       body: JSON.stringify(data_scheduled_tag),
     });
@@ -55,6 +56,7 @@ export const stop_ScheduleTag = async (task_id) => {
         "Content-Type": "application/json",
         "ngrok-skip-browser-warning": "true",
         Authorization: `Bearer ${token}`,
+        "skip_zrok_interstitial" : "true"
       },
     });
 
@@ -86,7 +88,8 @@ export const fetchDataTag = async () => {
       headers: {
         "Content-Type": "application/json",
         "ngrok-skip-browser-warning": "true",
-        Authorization: `Bearer ${token}`, // Include token in headers
+        Authorization: `Bearer ${token}`,
+        "skip_zrok_interstitial" : "true" // Include token in headers
       },
     });
 
@@ -114,7 +117,8 @@ export const updateTagData = async (editedScheduleData) => {
       headers: {
         "Content-Type": "application/json",
         "ngrok-skip-browser-warning": "true",
-        Authorization: `Bearer ${token}`, // Include JWT token in headers
+        Authorization: `Bearer ${token}`,
+        "skip_zrok_interstitial" : "true" // Include JWT token in headers
       },
       body: JSON.stringify(editedScheduleData), // Send the request body as JSON
     });
@@ -145,7 +149,8 @@ export const fetchTagList = async (page_id, access_token) => {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
-          "ngrok-skip-browser-warning": "true", // Set the content type as JSON
+          "ngrok-skip-browser-warning": "true",
+          "skip_zrok_interstitial" : "true" // Set the content type as JSON
         },
       });
   
@@ -176,7 +181,8 @@ export const fetchTagList = async (page_id, access_token) => {
         headers: {
           "Content-Type": "application/json",
           "ngrok-skip-browser-warning": "true",
-          Authorization: `Bearer ${token}`, // Include token in headers
+          Authorization: `Bearer ${token}`,
+          "skip_zrok_interstitial" : "true" // Include token in headers
         },
       });
   

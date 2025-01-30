@@ -132,6 +132,7 @@ const AutoTagPage = () => {
         {
           headers: {
             "ngrok-skip-browser-warning": "true",
+            "skip_zrok_interstitial" : "true"
           },
           retry: 1500, // Retry connection every 1.5 seconds
         }
